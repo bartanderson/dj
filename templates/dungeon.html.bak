@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dungeon Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(30, 40, 50, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            text-align: center;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        .content {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .dungeon-container {
+            flex: 3;
+            min-width: 600px;
+            background: #1a1f25;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .legend {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(30, 40, 50, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .legend h2 {
+            color: #3498db;
+            border-bottom: 1px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        .color-box {
+            width: 30px;
+            height: 30px;
+            margin-right: 15px;
+            border: 1px solid #7f8c8d;
+        }
+        .reload-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to right, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            text-align: center;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dungeon Master</h1>
+        
+        <div class="content">
+            <div class="dungeon-container">
+                <img src="data:image/png;base64,{{ image_data }}" 
+                     alt="Generated Dungeon" style="max-width: 100%">
+            </div>
+            
+            <div class="legend">
+                <h2>Map Legend</h2>
+                
+                <h3>Doors</h3>
+                <div class="legend-item">
+                    <div class="color-box" style="background: white; position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                                    border: 1px solid black; box-sizing: border-box;"></div>
+                    </div>
+                    <div>Open Door</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: white; position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                                    border: 1px solid black; box-sizing: border-box;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                                        width: 10px; height: 10px; background: black; border-radius: 50%;"></div>
+                        </div>
+                    </div>
+                    <div>Locked Door</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: white; position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                                    border: 1px solid black; box-sizing: border-box;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                                        width: 15px; height: 15px; background: red;"></div>
+                        </div>
+                    </div>
+                    <div>Trapped Door</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: #34495e; position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                                    border: 1px solid #888; box-sizing: border-box;"></div>
+                    </div>
+                    <div>Secret Door</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: white; position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                                    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 4px;">
+                            <div style="background: black; height: 100%;"></div>
+                            <div style="background: black; height: 100%;"></div>
+                            <div style="background: black; height: 100%;"></div>
+                        </div>
+                    </div>
+                    <div>Portcullis</div>
+                </div>
+                
+                <h3>Stairs</h3>
+                <div class="legend-item">
+                    <div class="color-box" style="background: #9b59b6; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(45deg);
+                                    width: 20px; height: 3px; background: white;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+                                    width: 20px; height: 3px; background: white;"></div>
+                    </div>
+                    <div>Stairs Up</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: #9b59b6; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(45deg);
+                                    width: 20px; height: 3px; background: white;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+                                    width: 20px; height: 3px; background: white;"></div>
+                        <div style="position: absolute; top: 70%; left: 50%; transform: translateX(-50%);
+                                    width: 0; height: 0; border-left: 5px solid transparent;
+                                    border-right: 5px solid transparent; border-top: 8px solid white;"></div>
+                    </div>
+                    <div>Stairs Down</div>
+                </div>
+                
+                <h3>Rooms & Corridors</h3>
+                <div class="legend-item">
+                    <div class="color-box" style="background: white;"></div>
+                    <div>Open Space (Room/Corridor)</div>
+                </div>
+                
+                <div class="legend-item">
+                    <div class="color-box" style="background: #34495e;"></div>
+                    <div>Walls</div>
+                </div>
+                
+                <a href="/" class="reload-btn">Generate New Dungeon</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
