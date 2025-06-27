@@ -42,6 +42,10 @@ def generate_dungeon():
     generator.create_dungeon()
     game_state.dungeon_state = EnhancedDungeonState(generator)
     
+    # Add after creating dungeon_state
+    game_state.dungeon_state.visibility.init_true_state()
+    game_state.dungeon_state.visibility.set_view(True, True)  # Make all cells visible
+    
     # Generate images
     img = game_state.dungeon_state.render_to_image()
     icons = game_state.dungeon_state.generate_legend_icons(icon_size=30)

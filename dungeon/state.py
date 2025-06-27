@@ -533,26 +533,26 @@ class EnhancedDungeonState(DungeonState):
                         continue  # Skip unexplored cells
                     
                     # Count cell types for debugging
-                    if cell.base_type == DungeonGenerator.NOTHING:
-                        cell_type_counts["NOTHING"] += 1
+                    if cell.base_type & DungeonGenerator.STAIRS:
+                        cell_type_counts["STAIRS"] += 1
+                    elif cell.base_type & DungeonGenerator.DOORSPACE:
+                        cell_type_counts["DOOR"] += 1
                     elif cell.base_type & DungeonGenerator.ROOM:
                         cell_type_counts["ROOM"] += 1
                     elif cell.base_type & DungeonGenerator.CORRIDOR:
                         cell_type_counts["CORRIDOR"] += 1
-                    elif cell.base_type & DungeonGenerator.DOORSPACE:
-                        cell_type_counts["DOOR"] += 1
-                    elif cell.base_type & DungeonGenerator.STAIRS:
-                        cell_type_counts["STAIRS"] += 1
+                    elif cell.base_type == DungeonGenerator.NOTHING:
+                        cell_type_counts["NOTHING"] += 1
                     else:
                         cell_type_counts["OTHER"] += 1
                     
-                    # Print detailed info for first 10 cells
-                    if cell_type_counts["NOTHING"] < 10:
-                        print(f"Cell ({x},{y}) - "
-                              f"Base: {hex(cell.base_type)}, "
-                              f"Current: {hex(cell.current_type)}, "
-                              f"Visible: {visibility['visible']}, "
-                              f"Room ID: {self.get_current_room_id((x,y))}")
+                    # # Print detailed info for first 10 cells
+                    # if cell_type_counts["NOTHING"] < 10:
+                    #     print(f"Cell ({x},{y}) - "
+                    #           f"Base: {hex(cell.base_type)}, "
+                    #           f"Current: {hex(cell.current_type)}, "
+                    #           f"Visible: {visibility['visible']}, "
+                    #           f"Room ID: {self.get_current_room_id((x,y))}")
                     
                     if visibility['visible']:
                         self.draw_visible_cell(draw, pos_x, pos_y, cell_size, cell)
@@ -603,67 +603,9 @@ class EnhancedDungeonState(DungeonState):
         if cell.current_type & DungeonGenerator.PORTC: return 'portc'
         return 'door'
 
-    def get_door_orientation_from_cell(self, cell):
-        """Determine door orientation using cell's neighbors in the grid"""
-        x, y = cell.x, cell.y
-        horizontal_open = (
-            self.is_valid_position((x, y-1)) and 
-            self.grid[x][y-1].current_type & DungeonGenerator.OPENSPACE and
-            self.is_valid_position((x, y+1)) and 
-            self.grid[x][y+1].current_type & DungeonGenerator.OPENSPACE
-        )
-        
-        vertical_open = (
-            self.is_valid_position((x-1, y)) and 
-            self.grid[x-1][y].current_type & DungeonGenerator.OPENSPACE and
-            self.is_valid_position((x+1, y)) and 
-            self.grid[x+1][y].current_type & DungeonGenerator.OPENSPACE
-        )
-        
-        return 'horizontal' if horizontal_open else 'vertical'
-
-    # def draw_visible_cell(self, draw, x, y, size, cell):
-    #     try:
-    #         # Draw base cell
-    #         if cell.current_type & DungeonGenerator.BLOCKED:
-    #             draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
-    #         elif cell.current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR):
-    #             draw.rectangle([x, y, x+size, y+size], fill=(255, 255, 255))
-    #         else:
-    #             draw.rectangle([x, y, x+size, y+size], fill=(200, 200, 200))
-            
-    #         # SPECIAL HANDLING FOR DOORS
-    #         if cell.current_type & DungeonGenerator.DOORSPACE:
-    #             # Get door properties DIRECTLY from cell
-    #             door_type = self.get_door_type_from_cell(cell)
-    #             orientation = self.get_door_orientation_from_cell(cell)
-    #             self.draw_door(draw, x, y, size, door_type, orientation)
-                
-    #         # Draw features using cell's properties
-    #         if cell.current_type & DungeonGenerator.DOORSPACE:
-    #             door_type = self.get_door_type(cell.current_type)
-    #             orientation = self.get_door_orientation((cell.x, cell.y))
-    #             self.draw_door(draw, x, y, size, door_type, orientation)
-                
-    #         if cell.current_type & DungeonGenerator.STAIRS:
-    #             for stair in self.stairs:
-    #                 if (cell.x, cell.y) == stair['position']:
-    #                     dr = stair['next_position'][0] - cell.x
-    #                     dc = stair['next_position'][1] - cell.y
-    #                     orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-    #                     self.draw_stairs(draw, x, y, size, stair['key'], orientation)
-    #                     break
-                        
-    #         if cell.features:
-    #             self.draw_features(draw, x, y, size, cell.features)
-                
-    #     except Exception as e:
-    #         print(f"Error drawing cell at ({cell.x},{cell.y}): {str(e)}")
-    #         draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
-    #         draw.text((x+5, y+5), "ERR", fill=(0, 0, 0))
-
     def draw_visible_cell(self, draw, x, y, size, cell):
         try:
+            #print(f"🐛 DEBUG: Drawing door at ({cell.x},{cell.y})")
             # Base cell drawing (WORKS FINE)
 
             if cell.current_type & DungeonGenerator.ROOM:
@@ -689,22 +631,22 @@ class EnhancedDungeonState(DungeonState):
                 else: 
                     door_type = 'door'
 
-                print(f"  Door type: {door_type}")
+                # print(f"  Door type: {door_type}")
                     
                 # SIMPLIFIED ORIENTATION DETECTION
-                orientation = 'horizontal'  # Default
+                orientation = 'vertical'  # Default
                 if (cell.x > 0 and cell.x < len(self.grid)-1 and
-                    self.grid[cell.x-1][cell.y].current_type & DungeonGenerator.OPENSPACE and
-                    self.grid[cell.x+1][cell.y].current_type & DungeonGenerator.OPENSPACE):
-                    orientation = 'vertical'
+                    self.grid[cell.x-1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR) and
+                    self.grid[cell.x+1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR)):
+                    orientation = 'horizontal'
 
-                # Draw temporary marker to verify position
-                center_x = x + size//2
-                center_y = y + size//2
-                draw.ellipse([
-                    center_x-3, center_y-3,
-                    center_x+3, center_y+3
-                ], fill=(0, 0, 255))  # Blue dot
+                # # Draw temporary marker to verify position
+                # center_x = x + size//2
+                # center_y = y + size//2
+                # draw.ellipse([
+                #     center_x-3, center_y-3,
+                #     center_x+3, center_y+3
+                # ], fill=(0, 0, 255))  # Blue dot
                 
                 # Use your original door drawing code
                 self.draw_door_basic(draw, x, y, size, door_type, orientation)
@@ -886,39 +828,17 @@ class EnhancedDungeonState(DungeonState):
         if cell_value & DungeonGenerator.PORTC: return 'portc'
         return 'door'
 
-    def get_door_orientation(self, position: Tuple[int, int]) -> str:
-        """
-        Determine door orientation based on CURRENT adjacent cells.
-        This is a rendering concern, not generation.
-        """
-        x, y = position
-        
-        # Check horizontal neighbors (east/west)
-        horizontal_open = (
-            self.is_open_space(x, y-1) and  # West
-            self.is_open_space(x, y+1)      # East
-        )
-        
-        # Check vertical neighbors (north/south)
-        vertical_open = (
-            self.is_open_space(x-1, y) and  # North
-            self.is_open_space(x+1, y)      # South
-        )
-        
-        # Prefer horizontal orientation if both are possible
-        return 'horizontal' if horizontal_open else 'vertical'
-
     def is_open_space(self, x, y):
         """Check if cell is open space"""
         if not self.is_valid_position((x, y)):
             return False
         cell = self.grid[x][y]
-        return bool(self.current_type & DungeonGenerator.OPENSPACE)
+        return bool(self.current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR))
 
     def draw_door(self, draw, x, y, size, door_type, orientation):
         """Draw a door with proper detail and orientation"""
         try:
-            is_horizontal = (orientation == 'horizontal')
+            is_horizontal = (orientation == 'vertical')
             center_x = x + size // 2
             center_y = y + size // 2
             door_width = size // 3
@@ -1005,36 +925,6 @@ class EnhancedDungeonState(DungeonState):
             draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
             draw.text((x+5, y+5), "DOOR ERR", fill=(0, 0, 0))
 
-    def draw_stairs(self, draw, x, y, size, stair_type, orientation):
-        """Draw stairs with proper orientation"""
-        step_count = 5
-        spacing = size / (step_count + 1)
-        max_length = size * 0.8
-        
-        if orientation == 'horizontal':
-            center_y = y + size // 2
-            for i in range(1, step_count + 1):
-                if stair_type == 'up':
-                    length = max_length
-                else:  # Down stairs
-                    length = max_length * (i / step_count)
-                x_pos = x + i * spacing
-                draw.line([
-                    x_pos, center_y - length//2,
-                    x_pos, center_y + length//2
-                ], fill=(0, 0, 0), width=2)
-        else:
-            center_x = x + size // 2
-            for i in range(1, step_count + 1):
-                if stair_type == 'up':
-                    length = max_length
-                else:  # Down stairs
-                    length = max_length * (i / step_count)
-                y_pos = y + i * spacing
-                draw.line([
-                    center_x - length//2, y_pos,
-                    center_x + length//2, y_pos
-                ], fill=(0, 0, 0), width=2)
 
     def generate_legend_icons(self, icon_size=30):
         """Generate consistent legend icons using our drawing methods"""
@@ -1157,8 +1047,8 @@ class EnhancedDungeonState(DungeonState):
         step_count = 5
         spacing = size / (step_count + 1)
         max_length = size * 0.8
-        
-        if orientation == 'horizontal':
+
+        if orientation == 'vertical':
             center_y = y + size // 2
             for i in range(1, step_count + 1):
                 if stair_type == 'up':
