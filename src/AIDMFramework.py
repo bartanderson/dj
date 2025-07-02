@@ -1527,6 +1527,25 @@ class DungeonInterface:
     def _get_room_hazards(self) -> List[str]:
         return []
 
+# ============================================================================
+# Enhanced DM AGENT INTERFACE -- initially added to allow setting the seed
+# ============================================================================
+
+class EnhancedDMAgent:
+    def set_dungeon_seed(self, seed):
+        """Allow AI to control dungeon generation seed"""
+        self.game_state.generation_seed = seed
+        
+    def generate_dungeon_with_current_seed(self, **params):
+        """Generate dungeon using the current seed"""
+        self.game_state.initialize_dungeon(
+            seed=self.game_state.generation_seed,
+            **params
+        )
+        
+    def describe_dungeon(self):
+        """Generate description using current seed"""
+        return f"Dungeon generated with seed {self.game_state.generation_seed}"
 
 # ============================================================================
 # AI AGENT INTEGRATION INTERFACE

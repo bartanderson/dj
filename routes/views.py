@@ -1,53 +1,51 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, current_app
 import io
 import base64
 from dungeon.generator import DungeonGenerator  # Updated import path
 from src.ai.dm_agent import EnhancedDMAgent
 from src.game.state import UnifiedGameState 
-from src.AIDMFramework import EnhancedGameContext#, GameState, PuzzleEntity, Character
 from dungeon.state import EnhancedDungeonState
+from dungeon.renderers.image_renderer import ImageRenderer
 
 views_bp = Blueprint('views', __name__)
 
-# Use a fixed seed for consistent results
-DEFAULT_SEED = 12345
-
 @views_bp.route('/')
 def generate_dungeon():
-    # Create a game state instance
-    game_state = UnifiedGameState()
-    game_context = EnhancedGameContext()
-    dm_agent = EnhancedDMAgent(game_state, game_context)
+    # Use the app's game state
+    game_state = current_app.game_state
     
-    # Get seed from URL parameter or use default
-    seed = request.args.get('seed', DEFAULT_SEED)
-    try:
-        seed = int(seed)
-    except ValueError:
-        seed = DEFAULT_SEED
+    # Initialize visibility if needed
+    if not hasattr(game_state.dungeon_state.visibility, 'true_state'):
+        game_state.dungeon_state.visibility.init_true_state()
 
-    options = {
-        'seed': seed,
-        'n_rows': 39,
-        'n_cols': 39,
-        'room_min': 3,
-        'room_max': 9,
-        'corridor_layout': 'Bent',
-        'remove_deadends': 50,
-        'add_stairs': 2
-    }
+    # Handle reveal_all parameter
+    reveal_all = request.args.get('reveal_all', 'false').lower() == 'true'
+    
+    if reveal_all:
+        print("Revealing entire dungeon")
+        game_state.dungeon_state.visibility.set_reveal_all(True)
+    else:
+        print("Resetting to normal visibility")
+        game_state.dungeon_state.visibility.set_reveal_all(False)
 
-    # Create dungeon and add to state
-    generator = DungeonGenerator(options)
-    generator.create_dungeon()
-    game_state.dungeon_state = EnhancedDungeonState(generator)
+    # Get parameters from request
+    seed = request.args.get('seed')
+    theme = request.args.get('theme', 'abandoned-mine')
+    difficulty = request.args.get('difficulty', 'hard')
+
+    # Reinitialize if parameters changed
+    if seed or theme or difficulty:
+        game_state.initialize_dungeon(
+            seed=int(seed) if seed else game_state.generation_seed,
+            theme=theme,
+            difficulty=difficulty
+        )
+
+    # Create renderer
+    renderer = ImageRenderer(game_state.dungeon_state)
+    img = renderer.render(debug_show_all=reveal_all)
     
-    # Add after creating dungeon_state
-    game_state.dungeon_state.visibility.init_true_state()
-    game_state.dungeon_state.visibility.set_view(True, True)  # Make all cells visible
-    
-    # Generate images
-    img = game_state.dungeon_state.render_to_image()
+    # Generate legend icons
     icons = game_state.dungeon_state.generate_legend_icons(icon_size=30)
     
     # Convert images to base64
@@ -58,12 +56,19 @@ def generate_dungeon():
 
     dungeon_base64 = img_to_base64(img)
     icon_base64 = {key: img_to_base64(img) for key, img in icons.items()}
-
+    
     # Add AI description
+    dm_agent = EnhancedDMAgent(game_state, game_state.game_context)
     description = dm_agent.describe_dungeon()
     
     return render_template('dungeon.html', 
                           dungeon_img=dungeon_base64, 
                           icons=icon_base64,
-                          seed=seed,
-                          description=description)  # Add to template
+                          seed=game_state.generation_seed,
+                          description=description)
+    
+    return render_template('dungeon.html', 
+                          dungeon_img=dungeon_base64, 
+                          icons=icon_base64,
+                          seed=game_state.generation_seed,
+                          description=description)

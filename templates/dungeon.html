@@ -111,7 +111,6 @@
         <div class="dungeon-display">
             <div class="dungeon-container">
                 <div class="controls">
-                    <button onclick="toggleFog()">Toggle Fog</button>
                     <button onclick="devRevealAll()">Reveal All (Dev)</button>
                     <button onclick="resetView()">Reset View (Dev)</button>
                 </div>
@@ -181,36 +180,37 @@
         </div>
     </div>
 <script>
-function toggleFog() {
-    fetch('/api/toggle-fog', {method: 'POST'})
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                location.reload();
-            }
-        });
-}
-
 function devRevealAll() {
-    fetch('/dev/reveal-all', {method: 'POST'})
+    fetch('/api/dev/reveal-all', {method: 'POST'})
         .then(response => response.json())
         .then(data => {
             if(data.success) {
-                location.reload();
+                // Reload with reveal_all parameter
+                const url = new URL(window.location.href);
+                url.searchParams.set('reveal_all', 'true');
+                window.location.href = url.toString();
+            } else {
+                console.error('Reveal all failed:', data.error);
             }
-        });
+        })
+        .catch(error => console.error('Reveal all error:', error));
 }
 
 function resetView() {
-    fetch('/dev/reset-view', {method: 'POST'})
+    fetch('/api/dev/reset-view', {method: 'POST'})
         .then(response => response.json())
         .then(data => {
             if(data.success) {
-                location.reload();
+                // Remove reveal_all parameter
+                const url = new URL(window.location.href);
+                url.searchParams.delete('reveal_all');
+                window.location.href = url.toString();
+            } else {
+                console.error('Reset view failed:', data.error);
             }
-        });
+        })
+        .catch(error => console.error('Reset view error:', error));
 }
 </script>
-
 </body>
 </html>

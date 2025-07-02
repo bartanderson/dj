@@ -4,6 +4,17 @@ from typing import List, Dict, Any, Tuple, Optional
 from PIL import Image, ImageDraw
 import math
 
+class DungeonColors:
+    ROOM = (255, 255, 255)        # White
+    CORRIDOR = (220, 220, 220)    # Light gray
+    WALL = (50, 50, 50)           # Dark gray
+    DOOR = (139, 69, 19)          # Brown
+    ARCH = (160, 120, 40)         # Light brown
+    STAIRS = (0, 0, 0)            # Black
+    SECRET = (52, 73, 94)         # Dark blue-gray
+    GRID = (200, 200, 200)        # Light gray
+    BACKGROUND = (52, 73, 94)     # Dark blue-gray
+
 class DungeonCell:
     def __init__(self, base_type, x, y):
         self.base_type = base_type  # Original generated type
@@ -22,11 +33,36 @@ class DungeonCell:
         self.search_difficulty = 10  # DC for finding hidden items
         self.searched = False
         self.metadata = {}  # Custom DM data
+        self.discovered = False  # For secret doors
+        self.modifications = []  # Player/DM changes
+        self.temporary_effects = []  # Visual effects
 
     @property
     def position(self):
         """Return position as tuple (x, y)"""
         return (self.x, self.y)
+
+    def reveal_secret(self, discovery_type="search"):
+        """Reveal hidden elements in this cell"""
+        if self.base_type == DungeonGenerator.SECRET:
+            self.current_type = DungeonGenerator.DOOR
+            self.discovered = True
+            return True
+        return False
+
+    def add_modification(self, mod_type, data=None):
+        self.dynamic_features.append({
+            'type': mod_type,
+            'data': data or {},
+            'permanent': True
+        })
+        
+    def add_effect(self, effect_type, duration):
+        self.temporary_effects.append({
+            'type': effect_type,
+            'duration': duration,
+            'elapsed': 0
+        })
 
     def add_npc(self, npc_id):
         if npc_id not in self.npcs:
@@ -54,12 +90,6 @@ class DungeonCell:
             'type': feature_type,
             'data': data or {}
         })
-        
-    def reveal_secret(self):
-        """Reveal hidden elements"""
-        if self.base_type == DungeonGenerator.SECRET:
-            self.current_type = DungeonGenerator.DOOR
-        # Add other secret revelation logic
         
     def break_door(self):
         """Convert door to archway"""
@@ -97,22 +127,19 @@ class VisibilitySystem:
     def __init__(self, dungeon, party_position):
         self.dungeon = dungeon
         self.party_position = party_position
-        self.light_sources = [party_position]
-        self.fog_enabled = True  # Default to fog of war
-
-        # Dual-layer state storage
-        self.true_state = {}  # Immutable exploration progress
+        self.light_sources = [party_position] if party_position else []
+        self.reveal_all = False  # Debug flag
+        self.true_state = {}  # Persistent exploration progress
         self.view_state = {}  # Temporary view overrides
+        self.init_true_state()
 
-    def set_view_at(self, position, explored, visible):
-        """Set temporary view at specific position"""
-        self.view_state[position] = {
-            'explored': explored,
-            'visible': visible
-        }
-
+    def set_reveal_all(self, reveal: bool):
+        """Set global reveal state"""
+        self.reveal_all = reveal
+        self.update_visibility()
+        
     def init_true_state(self):
-        """Initialize true exploration state (call after dungeon generation)"""
+        """Initialize true exploration state"""
         for x, row in enumerate(self.dungeon):
             for y, cell in enumerate(row):
                 self.true_state[(x, y)] = {
@@ -120,102 +147,192 @@ class VisibilitySystem:
                     'visible': False
                 }
     
-    def update_true_visibility(self):
-        """Update true visibility based on party position (gameplay only)"""
-        # Only update if fog is enabled
-        if not self.fog_enabled:
+    def calculate_visible_cells(self, max_distance=8):
+        """Calculate visible cells using recursive shadowcasting"""
+        visible = set()
+        if not self.party_position:
+            return visible
+            
+        start_x, start_y = self.party_position
+        visible.add((start_x, start_y))
+        
+        # Process each octant around the player
+        for octant in range(8):
+            self._cast_light(start_x, start_y, octant, 1, 1.0, 0.0, max_distance, visible)
+            
+        return visible
+
+    def _cast_light(self, cx, cy, octant, row, start_slope, end_slope, max_distance, visible):
+        """Recursive light casting for one octant"""
+        if row > max_distance:
             return
             
-        for x, row in enumerate(self.dungeon):
-            for y, cell in enumerate(row):
-                pos = (x, y)
+        # Calculate start and end columns for this row
+        start_col = max(0, -row)
+        end_col = min(row, max_distance)
+
+        # Initialize was_blocked for this row
+        was_blocked = False
+        
+        # Process columns in this row
+        for col in range(start_col, end_col + 1):
+            # Skip the center cell
+            if col == 0 and row == 0:
+                continue
                 
-                # Preserve exploration state
-                was_explored = self.true_state[pos]['explored']
+            # Calculate slopes of current cell
+            left_slope = (col - 0.5) / (row + 0.5)
+            right_slope = (col + 0.5) / (row - 0.5)
+            
+            # Skip if beyond our slope range
+            if right_slope <= start_slope:
+                continue
+            if left_slope >= end_slope:
+                break
                 
-                # Update visibility
-                visible = self.has_line_of_sight(self.party_position, pos)
-                self.true_state[pos] = {
-                    'explored': was_explored or visible,
-                    'visible': visible
-                }
-    
-    def set_view(self, explored=True, visible=True):
-        """Set temporary view state (doesn't alter true state)"""
-        for pos in self.true_state:
-            self.view_state[pos] = {
-                'explored': explored,
-                'visible': visible
-            }
-    
+            # Transform to grid coordinates
+            grid_x, grid_y = self._transform_octant(cx, cy, octant, col, row)
+            
+            # Only process cells that are within bounds
+            if not (0 <= grid_x < len(self.dungeon) and (0 <= grid_y < len(self.dungeon[0]))):
+                continue
+                
+            # Add to visible
+            visible.add((grid_x, grid_y))
+            
+            # Check if cell blocks visibility
+            cell = self.dungeon[grid_x][grid_y]
+            is_blocked = cell.base_type & DungeonGenerator.BLOCKED
+            if cell.base_type == DungeonGenerator.SECRET and not cell.discovered:
+                is_blocked = True
+                
+            if is_blocked:
+                # If previous cell wasn't blocked, cast new rays
+                if col > start_col and not was_blocked:
+                    self._cast_light(cx, cy, octant, row + 1, start_slope, left_slope, max_distance, visible)
+                    
+                # Update end slope
+                end_slope = right_slope
+                was_blocked = True
+            else:
+                # If previous cell was blocked, cast new ray
+                if was_blocked:
+                    self._cast_light(cx, cy, octant, row + 1, start_slope, left_slope, max_distance, visible)
+                was_blocked = False
+                
+        # Continue casting if not blocked at end of row
+        if not was_blocked:
+            self._cast_light(cx, cy, octant, row + 1, start_slope, end_slope, max_distance, visible)
+
+    def _transform_octant(self, cx, cy, octant, col, row):
+        """Transform octant coordinates to grid coordinates"""
+        if octant == 0: return cx + col, cy - row  # E
+        if octant == 1: return cx + row, cy - col  # SE
+        if octant == 2: return cx + row, cy + col  # S
+        if octant == 3: return cx + col, cy + row  # SW
+        if octant == 4: return cx - col, cy + row  # W
+        if octant == 5: return cx - row, cy + col  # NW
+        if octant == 6: return cx - row, cy - col  # N
+        if octant == 7: return cx - col, cy - row  # NE
+        return cx, cy
+
+    def reset_visibility(self):
+        """Reset visibility to initial state"""
+        self.init_true_state()
+        self.update_visibility()
+
     def clear_view(self):
         """Clear temporary view overrides"""
         self.view_state = {}
     
     def get_visibility(self, pos):
-        """Get effective visibility (view state overrides true state)"""
+        """Get effective visibility with view state overrides"""
+        if self.reveal_all:
+            return {'explored': True, 'visible': True}
         if pos in self.view_state:
             return self.view_state[pos]
-        return self.true_state.get(pos, {'explored': False, 'visible': False})      
-
-    def set_global_visibility(self, explored=True, visible=True):
-        """Set visibility for all cells"""
-        for row in self.dungeon:
-            for cell in row:
-                cell.visibility['explored'] = explored
-                cell.visibility['visible'] = visible
-                
-    def toggle_fog(self):
-        """Toggle fog of war"""
-        self.fog_enabled = not self.fog_enabled
-        return self.fog_enabled
+        return self.true_state.get(pos, {'explored': False, 'visible': False})
 
     def get_visible_cells(self):
         """Return list of currently visible positions"""
         visible = []
-        for x in range(len(self.dungeon)):
-            for y in range(len(self.dungeon[0])):
-                if self.dungeon[x][y].visibility['visible']:
+        for x, row in enumerate(self.dungeon):
+            for y, cell in enumerate(row):
+                if cell.visibility['visible']:
                     visible.append((x, y))
         return visible
         
     def update_visibility(self):
-        """Update visibility for all cells"""
-        for x in range(len(self.dungeon)):
-            for y in range(len(self.dungeon[0])):
+        """Update visibility based on current state"""
+        if self.reveal_all:
+            # Set all cells to visible in true state
+            for pos in self.true_state:
+                self.true_state[pos] = {'explored': True, 'visible': True}
+        else:
+            # Normal visibility calculation
+            visible_cells = self.calculate_visible_cells()
+            for pos in self.true_state:
+                # Preserve exploration status
+                explored = self.true_state[pos]['explored']
+                visible = pos in visible_cells
+                self.true_state[pos] = {
+                    'explored': explored or visible,
+                    'visible': visible
+                }
+                
+        # Apply to cells
+        for pos, state in self.true_state.items():
+            x, y = pos
+            if 0 <= x < len(self.dungeon) and 0 <= y < len(self.dungeon[0]):
                 cell = self.dungeon[x][y]
-                
-                # Reset visibility
-                cell.visibility['visible'] = False
-                
-                # Check light sources
-                for source in self.light_sources:
-                    if self.has_line_of_sight(source, (x, y)):
-                        cell.visibility['visible'] = True
-                        cell.visibility['explored'] = True
-                        
+                cell.visibility['explored'] = state['explored']
+                cell.visibility['visible'] = state['visible']
+
     def has_line_of_sight(self, from_pos, to_pos):
         x0, y0 = from_pos
         x1, y1 = to_pos
+        
+        # If same position, always visible
+        if from_pos == to_pos:
+            return True
+            
         dx = abs(x1 - x0)
         dy = abs(y1 - y0)
         sx = 1 if x0 < x1 else -1
         sy = 1 if y0 < y1 else -1
         err = dx - dy
         
-        while x0 != x1 or y0 != y1:
+        # Use float for more precise calculation
+        steps = max(dx, dy)
+        if steps == 0:
+            return True
+            
+        # Use a set to track visited positions
+        visited = set()
+        
+        while True:
+            # Check if we've reached the target
+            if (x0, y0) == to_pos:
+                return True
+                
+            # Add current position to visited
+            visited.add((x0, y0))
+            
+            # Get current cell
             cell = self.dungeon[x0][y0]
             
-            # Secret cells block vision until discovered
+            # Check if cell blocks vision
+            if cell.base_type & DungeonGenerator.BLOCKED:
+                print(f"Vision blocked at ({x0}, {y0}) with type {cell.base_type}")
+                return False
+                
+            # Check for secret doors
             if (cell.base_type == DungeonGenerator.SECRET and 
                 not cell.metadata.get('discovered', False)):
+                print(f"Secret door blocks vision at ({x0}, {y0})")
                 return False
                 
-            # Blocked cells block vision
-            if cell.base_type & DungeonGenerator.BLOCKED:
-                return False
-                
-            # Update position
+            # Update position using Bresenham's algorithm
             e2 = 2 * err
             if e2 > -dy:
                 err -= dy
@@ -224,7 +341,14 @@ class VisibilitySystem:
                 err += dx
                 y0 += sy
                 
-        return True
+            # Check if we've visited this position before (infinite loop prevention)
+            if (x0, y0) in visited:
+                print(f"Loop detected in LOS from {from_pos} to {to_pos}")
+                return False
+                
+            # Check bounds
+            if not (0 <= x0 < len(self.dungeon) and 0 <= y0 < len(self.dungeon[0])):
+                return False
         
     def add_light_source(self, position):
         self.light_sources.append(position)
@@ -236,7 +360,9 @@ class VisibilitySystem:
 
 class DungeonState:
     def __init__(self, generator: DungeonGenerator):
+        print("Initializing DungeonState")
         self.grid = self._convert_generator_output(generator)
+        print(f"Grid initialized: {len(self.grid)}x{len(self.grid[0])}")
         self.rooms = generator.room
         self.doors = generator.doorList
         # Convert stairs to use position tuples
@@ -245,13 +371,43 @@ class DungeonState:
             'next_position': (stair['next_row'], stair['next_col']),
             'key': stair['key']
         } for stair in generator.stairs]
+        print(f"Found {len(self.stairs)} stairs")
         
         # Initialize start position
         start_position = self.determine_start_position()
         
         # Set visibility and party position
         self.visibility = VisibilitySystem(self.grid, start_position)
+        self.visibility.update_visibility()
         self.party_position = start_position
+        print(f"DungeonState initialized with grid size: {len(self.grid)}x{len(self.grid[0])}")
+
+        # Mark starting cell as explored
+        start_cell = self.get_cell(*start_position)
+        if start_cell:
+            start_cell.visibility['explored'] = True
+            start_cell.visibility['visible'] = True
+
+    def get_cell(self, x: int, y: int) -> DungeonCell:
+        """Get cell at position (x, y)"""
+        if self.is_valid_position((x, y)):
+            return self.grid[x][y]
+        return None
+
+    @property
+    def height(self):
+        return len(self.grid)
+
+    @property
+    def width(self):
+        return len(self.grid[0]) if self.grid else 0
+
+    def discover_secrets(self, position, discovery_type="search"):
+        """Discover secrets at a position"""
+        x, y = position
+        if self.is_valid_position(position):
+            return self.grid[x][y].reveal_secret(discovery_type)
+        return False
 
     def determine_start_position(self):
         """Find the best starting position based on stairs"""
@@ -279,12 +435,23 @@ class DungeonState:
                     return next_pos
                 break
         
+        print(f"Final start position: {start_position}")
         return start_position
 
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
-        """Check if position is within grid bounds"""
-        x, y = position
-        return (0 <= x < len(self.grid)) and (0 <= y < len(self.grid[0]))
+        """Check if position is traversable"""
+        try:
+            x, y = position
+            # Check bounds
+            if x < 0 or x >= len(self.grid) or y < 0 or y >= len(self.grid[0]):
+                return False
+                
+            # Check cell type
+            cell = self.grid[x][y]
+            return bool(cell.current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR))
+        except Exception as e:
+            print(f"Position validation error at {position}: {str(e)}")
+            return False
 
 
     def search_cell(self, position, search_skill=0):
@@ -322,49 +489,69 @@ class DungeonState:
 
     def move_party(self, direction: str) -> Tuple[bool, str]:
         """Move party in specified direction with validation"""
-        if not hasattr(self, 'party_position'):
-            # Initialize party position at first stair
-            if self.stairs:
-                self.party_position = self.stairs[0]['position']
-                self.visibility.party_position = self.party_position
-                self.visibility.update_true_visibility()
-                return True, "Party positioned at entrance"
-            return False, "No starting position available"
+        try:
+            # Initialize party position if needed
+            if not hasattr(self, 'party_position'):
+                if self.stairs:
+                    self.set_party_position(self.stairs[0]['position'])
+                    return True, "Party positioned at entrance"
+                return False, "No starting position available"
+            
+            x, y = self.party_position
+            new_position = None
+            
+            # Calculate new position based on direction
+            direction = direction.lower()
+            if direction == 'north': new_position = (x-1, y)
+            elif direction == 'south': new_position = (x+1, y)
+            elif direction == 'west': new_position = (x, y-1)
+            elif direction == 'east': new_position = (x, y+1)
+            else:
+                return False, f"Invalid direction: {direction}"
+            
+            # Validate movement
+            if not self.is_valid_position(new_position):
+                return False, f"Cannot move to {new_position}"
+            
+            cell = self.grid[new_position[0]][new_position[1]]
+            
+            # Check if cell is blocked
+            if cell.current_type & (DungeonGenerator.BLOCKED | DungeonGenerator.PERIMETER):
+                return False, "Path blocked"
+            
+            # Handle doors
+            if cell.current_type & DungeonGenerator.DOORSPACE:
+                door_type = self.get_door_type(cell.current_type)
+                if door_type in ['locked', 'secret']:
+                    return False, f"{door_type.capitalize()} door blocks your path"
+            
+            # Update position and visibility
+            self.set_party_position(new_position)
+            
+            # Mark as explored
+            cell.visibility['explored'] = True
+            
+            return True, f"Moved {direction} to {self.get_room_description(new_position)}"
         
-        x, y = self.party_position
-        new_position = None
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return False, f"Movement error: {str(e)}"
         
-        if direction == 'north': new_position = (x-1, y)
-        elif direction == 'south': new_position = (x+1, y)
-        elif direction == 'west': new_position = (x, y-1)
-        elif direction == 'east': new_position = (x, y+1)
-        
-        if not new_position:
-            return False, "Invalid direction"
-        
-        # Validate movement
-        if not self.is_valid_position(new_position):
-            return False, "Cannot move outside dungeon"
-        
-        cell = self.grid[new_position[0]][new_position[1]]
-        if cell.current_type & (self.BLOCKED | self.PERIMETER):
-            return False, "Path blocked"
-        
-        # Handle doors
-        if cell.current_type & self.DOORSPACE:
-            door_type = self.get_door_type(cell.current_type)
-            if door_type in ['locked', 'secret']:
-                return False, f"{door_type.capitalize()} door blocks your path"
-        
-        # Update position
+    def set_party_position(self, new_position):
+        """Update party position and visibility"""
+        print(f"Moving party to {new_position}")
         self.party_position = new_position
-        self.visibility.party_position = new_position
-        self.visibility.update_true_visibility()
-        
-        # Mark as explored
-        cell.visibility['explored'] = True
-        
-        return True, f"Moved {direction} to {self.get_room_description(new_position)}"
+        if hasattr(self, 'visibility') and self.visibility:
+            self.visibility.party_position = new_position
+            self.visibility.light_sources = [new_position]
+            self.visibility.update_visibility()       # Update cell flags
+            
+        # Mark new position as explored
+        new_cell = self.get_cell(*new_position)
+        if new_cell:
+            new_cell.visibility['explored'] = True
+            new_cell.visibility['visible'] = True
 
     def get_door_type(self, cell_value):
         if cell_value & self.LOCKED: return 'locked'
@@ -415,12 +602,6 @@ class DungeonState:
             return "A narrow passageway"
         return "An unknown area"
         
-    def move_party(self, new_position):
-        """Move party and update visibility"""
-        self.party_position = new_position
-        self.visibility.party_position = new_position
-        self.visibility.update_visibility()
-        
     def add_feature(self, position, feature_type, data=None):
         x, y = position
         self.grid[x][y].add_feature(feature_type, data)
@@ -466,7 +647,9 @@ class DungeonState:
 # Enhanced with AI integration
 class EnhancedDungeonState(DungeonState):
     def __init__(self, generator):
+        print("Initializing EnhancedDungeonState")
         super().__init__(generator)
+        self.generator = generator
         self.theme = generator.opts.get('theme', 'dungeon')
         self.dynamic_features = {}
         self.quest_items = {}
@@ -474,11 +657,89 @@ class EnhancedDungeonState(DungeonState):
         self.puzzles = {}   # Add this line to initialize puzzles dictionary
 
         # DEBUG: Verify grid content
-        #print(f"EnhancedDungeonState initialized with grid size: {len(self.grid)}x{len(self.grid[0])}")
-        for i in range(min(5, len(self.grid))):
-            for j in range(min(5, len(self.grid[0]))):
-                cell = self.grid[i][j]
-                #print(f"Cell({i},{j}): {type(cell)}, base={cell.base_type}, current={cell.current_type}")
+        print(f"EnhancedDungeonState initialized with grid size: {len(self.grid)}x{len(self.grid[0]) if self.grid else 'N/A'}")
+        
+        self.validate_grid()
+
+        # Ensure grid is properly initialized
+        if not self.grid or len(self.grid) == 0 or len(self.grid[0]) == 0:
+            print("Debug: Grid empty after parent init, regenerating")
+            self.grid = self._convert_generator_output(generator)
+
+    def get_cell_appearance(self, cell, debug_show_all=False):
+        """Determine how a cell should appear based on state"""
+        if debug_show_all:
+            return cell.base_type, True, True
+            
+        # Handle secret doors - return BLOCKED if undiscovered
+        if (cell.base_type == DungeonGenerator.SECRET and 
+            not getattr(cell, 'discovered', False)):
+            effective_type = DungeonGenerator.BLOCKED
+        else:
+            effective_type = cell.current_type
+            
+        visibility = cell.visibility
+        return effective_type, visibility['explored'], visibility['visible']
+
+    def update_effect_timers(self):
+        """Update effect durations (called on each render)"""
+        for row in self.grid:
+            for cell in row:
+                new_effects = []
+                for effect in cell.temporary_effects:
+                    # Simplified without animation for now
+                    if 'duration' in effect:
+                        effect['duration'] -= 0.1
+                        if effect['duration'] > 0:
+                            new_effects.append(effect)
+                    else:
+                        new_effects.append(effect)
+                cell.temporary_effects = new_effects
+
+    def break_door(self, position):
+        x, y = position
+        cell = self.get_cell(x, y)
+        if cell and cell.base_type in [DungeonGenerator.DOOR, DungeonGenerator.LOCKED]:
+            cell.add_modification('broken_door')
+            cell.current_type = DungeonGenerator.ARCH
+            
+    def reveal_secret(self, position):
+        x, y = position
+        cell = self.get_cell(x, y)
+        if cell and cell.base_type == DungeonGenerator.SECRET:
+            cell.discovered = True
+            
+    def add_rubble(self, position):
+        x, y = position
+        cell = self.get_cell(x, y)
+        if cell:
+            cell.add_modification('rubble')
+            
+    def add_bloodstain(self, position):
+        x, y = position
+        cell = self.get_cell(x, y)
+        if cell:
+            cell.add_modification('bloodstain')
+            
+    def add_shiny_spot(self, position):
+        x, y = position
+        cell = self.get_cell(x, y)
+        if cell:
+            cell.add_effect('shiny_spot', 10)  # 10-second effect
+
+    def get_cell(self, x: int, y: int) -> DungeonCell:
+        """Get cell at position (x, y)"""
+        if self.is_valid_position((x, y)):
+            return self.grid[x][y]
+        return None
+
+    @property
+    def height(self):
+        return len(self.grid)
+
+    @property
+    def width(self):
+        return len(self.grid[0]) if self.grid else 0
 
     def validate_grid(self):
         """Check all cells for required attributes"""
@@ -500,13 +761,61 @@ class EnhancedDungeonState(DungeonState):
             
         return not errors
 
-    def render_to_image(self, cell_size=18, grid_color=(200, 200, 200)):
+    def render_to_web(self, visible_only=True) -> dict:
+        """Render dungeon for web interface with visibility control"""
+        grid_data = []
+        visible_cells = self.visibility.get_visible_cells() if visible_only else None
+        
+        for x in range(len(self.grid)):
+            row = []
+            for y in range(len(self.grid[0])):
+                cell = self.grid[x][y]
+                visibility = self.visibility.get_visibility((x, y))
+                
+                # Only show visible cells if enabled
+                if visible_only:
+                    if not visibility['visible'] and not visibility['explored']:
+                        continue  # Skip completely hidden cells
+                    
+                cell_data = {
+                    'x': x,
+                    'y': y,
+                    'base_type': cell.base_type,
+                    'current_type': cell.current_type,
+                    'explored': visibility['explored'],
+                    'visible': visibility['visible'],
+                    'features': cell.features,
+                    'room_id': self.get_current_room_id((x, y))
+                }
+                row.append(cell_data)
+            grid_data.append(row)
+        
+        # Create legend
+        legend = {
+            'room': 'Room',
+            'corridor': 'Corridor',
+            'door': 'Door',
+            'stairs': 'Stairs',
+            'wall': 'Wall'
+        }
+        
+        return {
+            'grid': grid_data,
+            'party_position': self.party_position,
+            'legend': legend,
+            'width': len(self.grid[0]),
+            'height': len(self.grid)
+        }
+
+    def render_to_image(self, cell_size=18, grid_color=DungeonColors.GRID, debug_show_all=False):
         """Render dungeon with visibility control"""
+        print(f"Starting render: reveal_all={debug_show_all}")
+        print("Render to image method called here........................")
         try:
             # Calculate dimensions
             width = len(self.grid[0]) * cell_size
             height = len(self.grid) * cell_size
-            img = Image.new('RGB', (width, height), (52, 73, 94))
+            img = Image.new('RGB', (width, height), DungeonColors.BACKGROUND)
             draw = ImageDraw.Draw(img)
             
             # Debug: Count different cell types
@@ -518,21 +827,23 @@ class EnhancedDungeonState(DungeonState):
                 "STAIRS": 0,
                 "OTHER": 0
             }
-            
+
+            # Analytics counters
+            stats = {
+                'total': 0,
+                'explored': 0,
+                'visible': 0,
+                'drawn_visible': 0,
+                'drawn_explored': 0,
+                'not_drawn': 0
+            }
+
             for x in range(len(self.grid)):
                 for y in range(len(self.grid[0])):
                     cell = self.grid[x][y]
                     pos = (x, y)
-                    visibility = self.visibility.get_visibility(pos)
-                    
-                    # Calculate drawing positions
-                    pos_y = y * cell_size
-                    pos_x = x * cell_size
-                    
-                    if not visibility['explored']:
-                        continue  # Skip unexplored cells
-                    
-                    # Count cell types for debugging
+                    stats['total'] += 1
+                    # Always count cell types for debugging
                     if cell.base_type & DungeonGenerator.STAIRS:
                         cell_type_counts["STAIRS"] += 1
                     elif cell.base_type & DungeonGenerator.DOORSPACE:
@@ -545,19 +856,34 @@ class EnhancedDungeonState(DungeonState):
                         cell_type_counts["NOTHING"] += 1
                     else:
                         cell_type_counts["OTHER"] += 1
+
+                    # Get cell appearance based on state
+                    effective_type, explored, visible = self.get_cell_appearance(cell, debug_show_all)
+
+                    # Calculate drawing positions
+                    x_pos = y * cell_size
+                    y_pos = x * cell_size
                     
-                    # # Print detailed info for first 10 cells
-                    # if cell_type_counts["NOTHING"] < 10:
-                    #     print(f"Cell ({x},{y}) - "
-                    #           f"Base: {hex(cell.base_type)}, "
-                    #           f"Current: {hex(cell.current_type)}, "
-                    #           f"Visible: {visibility['visible']}, "
-                    #           f"Room ID: {self.get_current_room_id((x,y))}")
-                    
-                    if visibility['visible']:
-                        self.draw_visible_cell(draw, pos_x, pos_y, cell_size, cell)
+                    # handle visibility
+                    if visible or debug_show_all:
+                        # Draw with full detail using effective_type
+                        self.draw_visible_cell(draw, x_pos, y_pos, cell_size, cell, effective_type)
+                    elif explored:
+                        # Draw as explored (grayed out)
+                        self.draw_explored_cell(draw, x_pos, y_pos, cell_size, cell)
                     else:
-                        self.draw_explored_cell(draw, pos_x, pos_y, cell_size, cell)
+                        # Unexplored - skip or draw as void
+                        pass
+
+            # Print analytics
+            print("\n==== RENDERING ANALYTICS ====")
+            print(f"Total cells: {stats['total']}")
+            print(f"Explored cells: {stats['explored']} ({stats['explored']/stats['total']:.1%})")
+            print(f"Visible cells: {stats['visible']} ({stats['visible']/stats['total']:.1%})")
+            print(f"Drawn as visible: {stats['drawn_visible']}")
+            print(f"Drawn as explored: {stats['drawn_explored']}")
+            print(f"Not drawn: {stats['not_drawn']}")
+            print("============================\n")
             
             # Print summary of cell types
             print("\n==== CELL TYPE SUMMARY ====")
@@ -573,10 +899,10 @@ class EnhancedDungeonState(DungeonState):
             return img
 
         except Exception as e:
-            print(f"Rendering error: {str(e)}")
             # Create error image with diagnostic information
             error_img = Image.new('RGB', (800, 600), (255, 200, 200))
             draw = ImageDraw.Draw(error_img)
+            print(f"Rendering Error {str(e)}")
             draw.text((10, 10), f"Rendering Error: {str(e)}", fill=(0, 0, 0))
             
             debug_info = [
@@ -603,20 +929,20 @@ class EnhancedDungeonState(DungeonState):
         if cell.current_type & DungeonGenerator.PORTC: return 'portc'
         return 'door'
 
-    def draw_visible_cell(self, draw, x, y, size, cell):
+    def draw_visible_cell(self, draw, x, y, size, cell, effective_type):
         try:
             #print(f"🐛 DEBUG: Drawing door at ({cell.x},{cell.y})")
             # Base cell drawing (WORKS FINE)
 
-            if cell.current_type & DungeonGenerator.ROOM:
-                draw.rectangle([x, y, x+size, y+size], fill=(255, 255, 255))  # White for rooms
-            elif cell.current_type & DungeonGenerator.CORRIDOR:
-                draw.rectangle([x, y, x+size, y+size], fill=(220, 220, 220))  # Light gray for corridors
-            elif cell.current_type & DungeonGenerator.BLOCKED:
-                draw.rectangle([x, y, x+size, y+size], fill=(50, 50, 50))     # Dark gray for walls
+            if effective_type & DungeonGenerator.ROOM:
+                draw.rectangle([x, y, x+size, y+size], fill=DungeonColors.ROOM)  # White for rooms
+            elif effective_type & DungeonGenerator.CORRIDOR:
+                draw.rectangle([x, y, x+size, y+size], fill=DungeonColors.CORRIDOR)  # Light gray for corridors
+            elif effective_type & DungeonGenerator.BLOCKED:
+                draw.rectangle([x, y, x+size, y+size], fill=DungeonColors.WALL)     # Dark gray for walls
             
             # DIRECT DOOR HANDLING (NO HELPER METHODS)
-            if cell.current_type & DungeonGenerator.DOORSPACE:
+            if effective_type & DungeonGenerator.DOORSPACE:
                 # Determine door type directly
                 if cell.current_type & DungeonGenerator.ARCH: 
                     door_type = 'arch'
@@ -639,24 +965,28 @@ class EnhancedDungeonState(DungeonState):
                     self.grid[cell.x-1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR) and
                     self.grid[cell.x+1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR)):
                     orientation = 'horizontal'
-
-                # # Draw temporary marker to verify position
-                # center_x = x + size//2
-                # center_y = y + size//2
-                # draw.ellipse([
-                #     center_x-3, center_y-3,
-                #     center_x+3, center_y+3
-                # ], fill=(0, 0, 255))  # Blue dot
                 
                 # Use your original door drawing code
                 self.draw_door_basic(draw, x, y, size, door_type, orientation)
+
+            # ADD MODIFICATION RENDERING HERE (AFTER BASE, BEFORE FEATURES)
+            for mod in cell.modifications:
+                self.draw_modification(draw, x, y, size, mod)
+                
+            # Existing feature drawing
+            if cell.features:
+                self.draw_features(draw, x, y, size, cell.features)
+            
+            # Add effect rendering here
+            for effect in cell.temporary_effects:
+                self.draw_effect(draw, x, y, size, effect)                
 
             # Draw other features (water, rubble, etc.)
             if cell.features:
                 self.draw_features(draw, x, y, size, cell.features)
             
             # STAIRS (WORKS FINE)
-            if cell.current_type & DungeonGenerator.STAIRS:
+            if effective_type & DungeonGenerator.STAIRS:
                 for stair in self.stairs:
                     if (cell.x, cell.y) == stair['position']:
                         dr = stair['next_position'][0] - cell.x
@@ -673,7 +1003,6 @@ class EnhancedDungeonState(DungeonState):
             draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
             draw.text((x+5, y+5), "ERR", fill=(0, 0, 0))
 
-
     def draw_door_basic(self, draw, x, y, size, door_type, orientation):
         """Your door drawing code with enhanced visibility"""
         is_horizontal = (orientation == 'horizontal')
@@ -683,9 +1012,9 @@ class EnhancedDungeonState(DungeonState):
         arch_height = size // 6
         
         # Use distinct colors for better visibility
-        door_color = (160, 120, 40)    # Medium brown
-        arch_color = (100, 100, 100)   # Gray
-        outline_color = (0, 0, 0)      # Black
+        door_color = DungeonColors.DOOR    # Medium brown
+        arch_color = DungeonColors.ARCH   # Gray
+        outline_color = DungeonColors.STAIRS      # Black
         
         # Draw arches for all visible doors
         if door_type != 'secret':
@@ -735,7 +1064,7 @@ class EnhancedDungeonState(DungeonState):
                 (center_x, center_y + lock_size//2),
                 (center_x - lock_size//2, center_y)
             ]
-            draw.polygon(diamond, fill=(200, 200, 200), outline=outline_color)
+            draw.polygon(diamond, fill=DungeonColors.GRID, outline=outline_color)
         
         elif door_type == 'portc':
             # Portcullis bars as 3 filled circles
@@ -782,7 +1111,7 @@ class EnhancedDungeonState(DungeonState):
             
             text_x = x + size // 2
             text_y = y + size // 2
-            draw.text((text_x, text_y), char, fill=(0, 0, 0), 
+            draw.text((text_x, text_y), char, fill=DungeonColors.STAIRS, 
                      font=font, anchor="mm")
 
     def cell_label(self, cell_value):
@@ -790,8 +1119,9 @@ class EnhancedDungeonState(DungeonState):
         char_code = (cell_value >> 24) & 0xFF
         return chr(char_code) if 32 <= char_code <= 126 else None
 
-    def draw_explored_cell(self, draw, x, y, size, cell):
+    def draw_explored_cell(self, draw, x, y, size, cell): # I don't understand what this is doing. If it is explored, shouldn't it be visible?
         """Draw an explored but not currently visible cell"""
+        print(f"Drawing explored cell at grid position: ({x//size}, {y//size})")
         # Grayed out version
         draw.rectangle([x, y, x+size, y+size], fill=(100, 100, 100))
         
@@ -818,6 +1148,44 @@ class EnhancedDungeonState(DungeonState):
         for c in range(0, len(self.grid[0]) + 1):
             x_pos = c * cell_size
             draw.line([x_pos, 0, x_pos, height], fill=color, width=1)
+
+    def draw_modification(self, draw, x, y, size, mod):
+        if mod['type'] == 'broken_door':
+            # Draw broken door fragments
+            center_x = x + size//2
+            center_y = y + size//2
+            for i in range(5):
+                px = center_x + random.randint(-6, 6)
+                py = center_y + random.randint(-6, 6)
+                draw.rectangle([px, py, px+3, py+3], fill=(101, 67, 33))
+                
+        elif mod['type'] == 'rubble':
+            # Draw rubble pieces
+            for i in range(8):
+                rx = x + random.randint(2, size-6)
+                ry = y + random.randint(2, size-6)
+                draw.rectangle([rx, ry, rx+4, ry+4], fill=(120,120,120))
+                
+        elif mod['type'] == 'bloodstain':
+            # Draw blood splatter
+            center_x, center_y = x+size//2, y+size//2
+            for i in range(5):
+                angle = random.uniform(0, 6.28)
+                dist = random.randint(2, size//4)
+                px = int(center_x + math.cos(angle)*dist)
+                py = int(center_y + math.sin(angle)*dist)
+                radius = random.randint(2,4)
+                draw.ellipse([px-radius, py-radius, px+radius, py+radius],
+                            fill=(150,10,10))
+    
+    def draw_effect(self, draw, x, y, size, effect):
+        if effect['type'] == 'shiny_spot':
+            # Draw static shiny effect (no animation for now)
+            center_x, center_y = x+size//2, y+size//2
+            for i in range(3):
+                draw.ellipse([center_x-3-i, center_y-3-i,
+                             center_x+3+i, center_y+3+i],
+                             outline=(255,255,200))
 
     def get_door_type(self, cell_value):
         """Get door type from cell flags"""

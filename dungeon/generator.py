@@ -34,6 +34,26 @@ class DungeonGenerator:
     BLOCK_CORR  = BLOCKED | PERIMETER | CORRIDOR
     BLOCK_DOOR  = BLOCKED | DOORSPACE
 
+    @property
+    def rooms(self):
+        """Alias for room attribute to match test expectations"""
+        return self.room
+
+    @property
+    def stairs(self):
+        """Alias for stairList attribute to match test expectations"""
+        return self.stairList
+
+    @property
+    def corridors(self):
+        """Return list of corridor cells"""
+        corridors = []
+        for row in self.cell:
+            for cell in row:
+                if cell & self.CORRIDOR:
+                    corridors.append(cell)
+        return corridors
+
     def __init__(self, options=None):
         self.opts = {
             'seed': 'None',
@@ -138,21 +158,49 @@ class DungeonGenerator:
         self.cell = None
         self.room = []
         self.doorList = []
-        self.stairs = []
+        self.stairList = []
         self.n_rooms = 0
         self.last_room_id = 0
 
+    def get_rooms(self):
+        return self.room
+        
+    def get_stairs(self):
+        return self.stairList
+        
+    # Add these properties with proper setters
+    @property
+    def rooms(self):
+        return self.room
+        
+    @rooms.setter
+    def rooms(self, value):
+        self.room = value
+        
+    @property
+    def stairs(self):
+        return self.stairList
+        
+    @stairs.setter
+    def stairs(self, value):
+        self.stairList = value
+
     def create_dungeon(self):
         self.init_dungeon_size()
+        print(f"Initialized dungeon size: {self.opts['n_rows']}x{self.opts['n_cols']}")  # Debug
         self.init_cells()
+        print("Cells initialized")  # Debug
         self.emplace_rooms()
+        print(f"Rooms placed: {len(self.room)}")  # Debug
         self.open_rooms()
+        print("Doors placed")  # Debug
         self.label_rooms()
         self.corridors()
-        
+
         if self.opts['add_stairs']:
             self.emplace_stairs()
-            
+            print(f"Stairs placed: {len(self.stairs)}")  # Debug
+                
         self.clean_dungeon()
         # Return structured data for DungeonState
         return {
@@ -1044,67 +1092,16 @@ class DungeonGenerator:
                     center_x - length//2, y_pos,
                     center_x + length//2, y_pos
                 ], fill=(0, 0, 0), width=1)
-
+                
     def render_to_image(self):
-        cell_size = self.opts['cell_size']
-        width = (self.opts['n_cols'] + 1) * cell_size
-        height = (self.opts['n_rows'] + 1) * cell_size
-        img = Image.new('RGB', (width, height), (52, 73, 94))
-        draw = ImageDraw.Draw(img)
+        """Render using state-based system for consistency"""
+        from dungeon.state import DungeonState
+        from dungeon.renderers.image_renderer import ImageRenderer
         
-        # Draw open spaces
-        for r in range(self.opts['n_rows'] + 1):
-            for c in range(self.opts['n_cols'] + 1):
-                cell = self.cell[r][c]
-                x = c * cell_size
-                y = r * cell_size
-                
-                if cell & ((self.ROOM | self.CORRIDOR) | self.DOORSPACE):
-                    draw.rectangle([x, y, x+cell_size, y+cell_size], fill=(255, 255, 255))
-        
-        # Draw grid
-        if self.opts['grid'] != 'None':
-            grid_color = (200, 200, 200)
-            for r in range(0, self.opts['n_rows'] + 2):
-                y_pos = r * cell_size
-                draw.line([0, y_pos, width, y_pos], fill=grid_color, width=1)
-            for c in range(0, self.opts['n_cols'] + 2):
-                x_pos = c * cell_size
-                draw.line([x_pos, 0, x_pos, height], fill=grid_color, width=1)
-        
-        # Draw elements using unified methods
-        for r in range(self.opts['n_rows'] + 1):
-            for c in range(self.opts['n_cols'] + 1):
-                cell = self.cell[r][c]
-                x = c * cell_size
-                y = r * cell_size
-                
-                # Draw doors
-                if cell & self.DOORSPACE:
-                    door_type = self.get_door_type(cell)
-                    orientation = self.get_door_orientation(r, c)
-                    self.draw_door(draw, x, y, cell_size, door_type, orientation)
-                
-                # Draw stairs
-                elif cell & self.STAIRS:
-                    stair = next((s for s in self.stairs if s['row'] == r and s['col'] == c), None)
-                    if stair:
-                        dr = stair['next_row'] - r
-                        dc = stair['next_col'] - c
-                        orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-                        self.draw_stairs(draw, x, y, cell_size, stair['key'], orientation)
-                
-                # Draw labels
-                if cell & self.LABEL:
-                    char = self.cell_label(cell)
-                    if char:
-                        font = ImageFont.load_default()
-                        text_x = x + cell_size // 2
-                        text_y = y + cell_size // 2
-                        draw.text((text_x, text_y), char, fill=(0, 0, 0), 
-                                 font=font, anchor="mm")
-        
-        return img
+        state = DungeonState(self)
+        state.visibility.set_reveal_all(True)  # Show everything
+        renderer = ImageRenderer(state)
+        return renderer.render()
 
     def generate_legend_icons(self, icon_size=30):
         """Generate icons with proper scaling to prevent clipping"""
@@ -1191,24 +1188,6 @@ class DungeonGenerator:
                             obj['hints'] = []
                         obj['hints'].append({"text": hint, "level": level})
 
-# Example usage
-if __name__ == "__main__":
-    options = {
-        'seed': 12345,
-        'n_rows': 39,
-        'n_cols': 39,
-        'room_min': 3,
-        'room_max': 9,
-        'corridor_layout': 'Bent',
-        'remove_deadends': 50,
-        'add_stairs': 2
-    }
-    
-    generator = DungeonGenerator(options)
-    generator.create_dungeon()
-    image = generator.render_to_image()
-    image.save('dungeon.png')
-
 class EnhancedDungeonGenerator(DungeonGenerator):
     def __init__(self, options=None):
         super().__init__(options)
@@ -1277,3 +1256,21 @@ class EnhancedDungeonGenerator(DungeonGenerator):
         )
         # In practice, call your AI model here
         return "A dimly lit chamber with damp stone walls echoing with distant drips"
+
+# Example usage
+if __name__ == "__main__":
+    options = {
+        'seed': 12345,
+        'n_rows': 39,
+        'n_cols': 39,
+        'room_min': 3,
+        'room_max': 9,
+        'corridor_layout': 'Bent',
+        'remove_deadends': 50,
+        'add_stairs': 2
+    }
+    
+    generator = DungeonGenerator(options)
+    generator.create_dungeon()
+    image = generator.render_to_image()
+    image.save('dungeon.png')

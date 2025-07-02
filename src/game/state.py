@@ -1,8 +1,12 @@
-# game\state.py - Unified game state management
-from dungeon.generator import EnhancedDungeonGenerator
+# src\game\state.py - Unified game state management
+# from dungeon.renderers.base_renderer import BaseRenderer # not sure this is or needs to be called
+from dungeon.renderers.image_renderer import ImageRenderer
+from dungeon.renderers.web_renderer import WebRenderer
+from dungeon.generator import EnhancedDungeonGenerator, DungeonGenerator
 from dungeon.state import EnhancedDungeonState
 from dungeon.objects import EnvironmentalEffect, MONSTER_DB, FEATURE_TEMPLATES
 from src.AIDMFramework import PuzzleEntity
+from typing import Tuple ,List #, Dict, Any, Optional, Union
 import random
 
 class TrapSystem:
@@ -77,13 +81,166 @@ class UnifiedGameState:
         self.active_quests = {}
         self.completed_quests = {}
         self.game_log = []
-        self.dungeon_state = None
-        self.current_level = 0
-        self.party_position = (0, 0)
+        self.dungeon_state: Optional[EnhancedDungeonState] = None
+        self.current_level = None
         self.active_puzzle = None
         self.puzzle_history = {}
-        self.npcs = {}  # NPC storage: {npc_id: {name, position, dialogue, ...}}
-        self.items = {}  # Item storage: {item_id: {name, description, ...}}
+        self.npcs = {}
+        self.items = {}
+        self.game_context = None
+        self.generation_seed = None
+
+
+    def get_renderer(self, render_type='image'):
+        if not self.dungeon_state:
+            self.initialize_dungeon()
+        
+        if render_type == 'web':
+            return WebRenderer(self.dungeon_state)
+        else:  # Default to image renderer
+            return ImageRenderer(self.dungeon_state)
+
+    def initialize_dungeon(self, **params):
+        """Create dungeon state from generator with given parameters"""
+
+        # Store seed if provided, otherwise generate new one
+        if 'seed' in params:
+            self.generation_seed = params['seed']
+        elif self.generation_seed is None:
+            self.generation_seed = random.randint(1, 100000)
+
+        generator = EnhancedDungeonGenerator({
+            'seed': self.generation_seed,
+            'n_rows': params.get('n_rows', 39),
+            'n_cols': params.get('n_cols', 39),
+            'room_min': params.get('room_min', 3),
+            'room_max': params.get('room_max', 9),
+            'theme': params.get('theme', 'dungeon'),
+            'difficulty': params.get('difficulty', 'medium'),
+            'feature_density': params.get('feature_density', 0.1)
+        })
+
+        generator.create_dungeon()
+        self.dungeon_state = EnhancedDungeonState(generator)
+        self.current_level = 1
+        self.party_position = self.find_starting_position()
+        
+    def find_starting_position(self) -> Tuple[int, int]:
+        """Find stairs or suitable starting position in current dungeon"""
+        if not self.dungeon_state:
+            return (0, 0)
+            
+        # Use stairs if available
+        if hasattr(self.dungeon_state, 'stairs') and self.dungeon_state.stairs:
+            return self.dungeon_state.stairs[0]['position']
+            
+        # Find first open space
+        for r in range(len(self.dungeon_state.grid)):
+            for c in range(len(self.dungeon_state.grid[0])):
+                cell = self.dungeon_state.grid[r][c]
+                if cell.base_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR):
+                    return (r, c)
+        return (0, 0)
+    
+    @property
+    def party_position(self) -> Tuple[int, int]:
+        """Get party position from dungeon state"""
+        if self.dungeon_state:
+            return self.dungeon_state.party_position
+        return (0, 0)
+    
+    @party_position.setter
+    def party_position(self, value: Tuple[int, int]):
+        if self.dungeon_state:
+            self.dungeon_state.party_position = value
+
+    def move_party(self, direction: str) -> Tuple[int, int]:
+        """Move party and return new position"""
+        if not self.dungeon_state:
+            return self.party_position
+            
+        old_pos = self.party_position
+        
+        # Get result from dungeon state
+        result = self.dungeon_state.move_party(direction)
+        print(f"game/state.move_party {result}")
+        
+        # Handle result
+        if isinstance(result, tuple) and len(result) == 2:
+            success, message = result
+            if not success:
+                self.log_event(f"Movement failed: {message}")
+                return old_pos
+        else:
+            self.log_event(f"Movement failed: invalid response from dungeon state")
+            return old_pos
+            
+        new_pos = self.party_position
+        self.log_event(f"Party moved {direction} from {old_pos} to {new_pos}")
+        # Force visibility update after move
+        self.dungeon_state.visibility.update_visibility()
+        return new_pos
+
+    def get_available_moves(self) -> List[str]:
+        """Get list of available movement directions from current position"""
+        print("get_available_moves")
+        if not self.dungeon_state:
+            return []
+        
+        available = []
+        position = self.party_position
+        
+        # Check all four directions
+        for direction, vector in [('north', (-1, 0)), 
+                                 ('south', (1, 0)), 
+                                 ('east', (0, 1)), 
+                                 ('west', (0, -1))]:
+            new_x = position[0] + vector[0]
+            new_y = position[1] + vector[1]
+            if self.is_valid_position((new_x, new_y)):
+                available.append(direction)
+        
+        return available
+
+    def search_current_cell(self, search_skill=0):
+        """Search the current cell"""
+        if not self.dungeon_state:
+            return False, "Dungeon not initialized", []
+        
+        position = self.party_position
+        return self.dungeon_state.search_cell(position, search_skill)
+
+    def add_dungeon_feature(self, feature_type: str, data: dict, position: Tuple[int, int] = None):
+        """Add feature to current or specified position"""
+        if not self.dungeon_state:
+            self.initialize_dungeon()
+            
+        pos = position or self.party_position
+        self.dungeon_state.add_feature(pos, feature_type, data)
+
+    def get_current_room_description(self) -> str:
+        """Get AI-generated description of current room"""
+        if not self.dungeon_state:
+            self.initialize_dungeon()
+
+    def render_dungeon_image(self) -> "Image":
+        """Render dungeon to PIL Image"""
+        if not self.dungeon_state:
+            self.initialize_dungeon()
+            
+        return self.dungeon_state.render_to_image()
+        
+    def render_dungeon_web(self) -> dict:
+        """Render dungeon for web interface"""
+        if not self.dungeon_state:
+            self.initialize_dungeon()
+            
+        return self.dungeon_state.render_to_web()
+        
+    def log_event(self, event: str):
+        """Add entry to game log"""
+        self.game_log.append(event)
+
 
     def add_npc(self, npc_id, name, position, dialogue, role="neutral"):
         self.npcs[npc_id] = {
@@ -114,39 +271,15 @@ class UnifiedGameState:
             self.npcs[npc_id]['quests'].append(quest_id)
             return True
         return False
-    
-    def assign_quest(self, npc_id, quest_id):
-        if npc_id in self.npcs and quest_id in self.active_quests:
-            self.npcs[npc_id]['quests'].append(quest_id)
-            return True
-        return False
-        
-    def initialize_dungeon(self, **params):
-        generator = EnhancedDungeonGenerator({
-            'seed': params.get('seed', random.randint(1, 100000)),
-            'n_rows': 39,
-            'n_cols': 39,
-            'room_min': params.get('room_min', 3),
-            'room_max': params.get('room_max', 9),
-            'theme': params.get('theme', 'dungeon'),
-            'difficulty': params.get('difficulty', 'medium'),
-            'feature_density': params.get('feature_density', 0.1)
-        })
-
-        generator.create_dungeon() # This initializes the generator's internal state
-
-        self.dungeon_state = EnhancedDungeonState(generator)
-        self.current_level = 1
-        self.party_position = self.find_starting_position()
         
     def find_starting_position(self):
         """Find stairs or suitable starting position"""
-        if self.dungeon_state.stairs:
+        if self.dungeon_state.stairs and len(self.dungeon_state.stairs) > 0:
             return self.dungeon_state.stairs[0]['position']
         # Find first open space
         for r in range(len(self.dungeon_state.grid)):
             for c in range(len(self.dungeon_state.grid[0])):
-                if self.dungeon_state.grid[r][c].base_type & DungeonGenerator.OPENSPACE:
+                if self.dungeon_state.grid[r][c].base_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR):
                     return (r, c)
         return (0, 0)
     
@@ -161,37 +294,20 @@ class UnifiedGameState:
     def get_character(self, character_id: str):
         """Get a character by ID"""
         return self.characters.get(character_id)
-        
-    def move_party(self, direction):
-        # Calculate new position
-        dr, dc = {
-            'north': (-1, 0),
-            'south': (1, 0),
-            'east': (0, 1),
-            'west': (0, -1)
-        }.get(direction, (0, 0))
-        
-        new_pos = (self.party_position[0] + dr, self.party_position[1] + dc)
-        
-        # Check if move is valid
-        if self.is_valid_position(new_pos):
-            self.party_position = new_pos
-            # Update all character positions
-            for char in self.characters.values():
-                char.position = new_pos
-            self.game_log.append(f"Party moved {direction} to {new_pos}")
-            return True
-        return False
-    
+            
     def is_valid_position(self, pos):
         """Check if position is traversable"""
         x, y = pos
+        if not self.dungeon_state:
+            return False
+        # Check bounds
         if not (0 <= x < len(self.dungeon_state.grid) and 
                 0 <= y < len(self.dungeon_state.grid[0])):
             return False
-            
+        
+        # Check cell type    
         cell = self.dungeon_state.grid[x][y]
-        return bool(cell.current_type & DungeonGenerator.OPENSPACE)
+        return cell and bool(cell.current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR))
 
     def complete_puzzle(self, puzzle_id: str):
         """Mark a puzzle as completed"""
