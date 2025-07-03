@@ -1,156 +1,194 @@
 from PIL import Image, ImageDraw
-
-# ============================================================================
-# DUNGEON RENDERER (SVG)
-# ============================================================================
+import math
+import random
 
 class DungeonRenderer:
     def __init__(self, cell_size=20):
         self.cell_size = cell_size
         self.colors = {
-            'room': '#F9E79F',
-            'corridor': '#FCF3CF',
-            'wall': '#566573',
-            'water': '#85C1E9',
-            'rubble': '#B7950B',
-            'party': '#2E86C1',
-            'monster': '#CB4335',
-            'door': '#784212',
-            'stairs_up': '#27AE60',
-            'stairs_down': '#E74C3C'
+            'door': (139, 69, 19),      # Brown
+            'arch': (160, 120, 40),     # Light brown
+            'secret': (52, 73, 94),     # Dark blue-gray
+            'locked': (101, 67, 33),    # Darker brown
+            'trapped': (150, 10, 10),   # Blood red
+            'portc': (80, 80, 80),      # Dark gray
+            'stairs_up': (27, 174, 96), # Green
+            'stairs_down': (231, 76, 60) # Red
         }
     
-    def render_to_svg(self, dungeon_state, visible_area=None):
-        """Render dungeon state to SVG string"""
-        width = len(dungeon_state.grid[0]) * self.cell_size
-        height = len(dungeon_state.grid) * self.cell_size
+    def draw_door(self, draw, x, y, door_type, orientation):
+        """Draw any door type with consistent styling"""
+        is_horizontal = (orientation == 'horizontal')
+        center_x = x + self.cell_size // 2
+        center_y = y + self.cell_size // 2
+        door_width = self.cell_size // 3
+        arch_height = self.cell_size // 6
+        outline_color = (0, 0, 0)
         
-        svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">'
+        # Draw arch for all visible doors except secrets
+        if door_type != 'secret':
+            if is_horizontal:
+                draw.rectangle([
+                    center_x - door_width//2, y,
+                    center_x + door_width//2, y + arch_height
+                ], fill=self.colors['arch'], outline=outline_color)
+                draw.rectangle([
+                    center_x - door_width//2, y + self.cell_size - arch_height,
+                    center_x + door_width//2, y + self.cell_size
+                ], fill=self.colors['arch'], outline=outline_color)
+            else:
+                draw.rectangle([
+                    x, center_y - door_width//2,
+                    x + arch_height, center_y + door_width//2
+                ], fill=self.colors['arch'], outline=outline_color)
+                draw.rectangle([
+                    x + self.cell_size - arch_height, center_y - door_width//2,
+                    x + self.cell_size, center_y + door_width//2
+                ], fill=self.colors['arch'], outline=outline_color)
+
+        # Draw door slab for appropriate types
+        door_color = self.colors.get(door_type, self.colors['door'])
+        if door_type in ['door', 'locked', 'trapped', 'portc']:
+            if is_horizontal:
+                draw.rectangle([
+                    center_x - door_width//2, y + arch_height,
+                    center_x + door_width//2, y + self.cell_size - arch_height
+                ], fill=door_color, outline=outline_color)
+            else:
+                draw.rectangle([
+                    x + arch_height, center_y - door_width//2,
+                    x + self.cell_size - arch_height, center_y + door_width//2
+                ], fill=door_color, outline=outline_color)
+
+        # Add special symbols
+        if door_type == 'locked':
+            # Diamond lock symbol
+            lock_size = self.cell_size // 6
+            diamond = [
+                (center_x, center_y - lock_size//2),
+                (center_x + lock_size//2, center_y),
+                (center_x, center_y + lock_size//2),
+                (center_x - lock_size//2, center_y)
+            ]
+            draw.polygon(diamond, fill=(100, 100, 100), outline=outline_color)
         
-        # Draw grid
-        for x in range(len(dungeon_state.grid)):
-            for y in range(len(dungeon_state.grid[0])):
-                if visible_area and (x, y) not in visible_area:
-                    continue
-                    
-                self._draw_cell(svg, x, y, dungeon_state)
+        elif door_type == 'portc':
+            # Portcullis bars
+            bar_thickness = max(2, self.cell_size // 12)
+            bar_count = 3
+            bar_spacing = self.cell_size / (bar_count + 1)
+            
+            if is_horizontal:
+                for i in range(1, bar_count + 1):
+                    bar_y = y + i * bar_spacing
+                    draw.rectangle([
+                        center_x - door_width//2, bar_y - bar_thickness//2,
+                        center_x + door_width//2, bar_y + bar_thickness//2
+                    ], fill=(40, 40, 40))
+            else:
+                for i in range(1, bar_count + 1):
+                    bar_x = x + i * bar_spacing
+                    draw.rectangle([
+                        bar_x - bar_thickness//2, center_y - door_width//2,
+                        bar_x + bar_thickness//2, center_y + door_width//2
+                    ], fill=(40, 40, 40))
         
-        # Draw features
-        for (x, y), feature in dungeon_state.features.items():
-            if visible_area and (x, y) not in visible_area:
-                continue
-            self._draw_feature(svg, x, y, feature)
+        elif door_type == 'secret':
+            # Cover with wall color
+            draw.rectangle([x, y, x+self.cell_size, y+self.cell_size], 
+                          fill=self.colors['secret'])
+            # Add subtle indicator
+            draw.line([
+                (x + self.cell_size//4, y + self.cell_size//2),
+                (x + 3*self.cell_size//4, y + self.cell_size//2)
+            ], fill=(150, 150, 200), width=2)
+
+    def draw_stairs(self, draw, x, y, stair_type, orientation):
+        """Draw stairs with consistent styling"""
+        step_count = 5
+        spacing = self.cell_size / (step_count + 1)
+        max_length = self.cell_size * 0.7
+        step_color = (80, 80, 80)
         
-        # Draw monsters
-        for monster_id, (x, y) in dungeon_state.monsters.items():
-            if visible_area and (x, y) not in visible_area:
-                continue
-            self._draw_monster(svg, x, y, monster_id)
-        
-        # Draw party
-        px, py = dungeon_state.party_position
-        self._draw_party(svg, px, py)
-        
-        svg += '</svg>'
-        return svg
-    
-    def _draw_cell(self, svg, x, y, dungeon_state):
-        """Draw base dungeon cell"""
-        cell = dungeon_state.grid[x][y]
-        color = self.colors['wall']
-        
-        if cell & DungeonGenerator.ROOM:
-            color = self.colors['room']
-        elif cell & DungeonGenerator.CORRIDOR:
-            color = self.colors['corridor']
-        elif cell & DungeonGenerator.STAIR_UP:
-            color = self.colors['stairs_up']
-        elif cell & DungeonGenerator.STAIR_DN:
-            color = self.colors['stairs_down']
-        
-        self._draw_rect(svg, x, y, color)
-        
-        # Draw doors
-        if cell & (DungeonGenerator.DOOR | DungeonGenerator.LOCKED | 
-                  DungeonGenerator.TRAPPED | DungeonGenerator.SECRET):
-            self._draw_door(svg, x, y)
-    
-    def _draw_feature(self, svg, x, y, feature):
-        pass
-        
-    def _draw_feature(self, x, y, feature):
-        # Custom feature rendering
-        feature_type = feature['type']
-        if feature_type == 'water':
-            self._draw_water(x, y)
-        elif feature_type == 'rubble':
-            self._draw_rubble(x, y)
-        elif feature_type == 'statue':
-            self._draw_statue(x, y, feature['data'])
-        # Add other features
-    
-    def _draw_water(self, svg, x, y):
-        """Draw water feature"""
-        self._draw_rect(svg, x, y, self.colors['water'], opacity=0.6)
-        # Add wave patterns
-        cx, cy = self._get_center(x, y)
-        svg += f'<path d="M{cx-5} {cy+2} C{cx-2} {cy-2}, {cx+2} {cy-2}, {cx+5} {cy+2}" stroke="#3498DB" fill="none" />'
-    
-    def _draw_rubble(self, svg, x, y):
-        """Draw rubble feature"""
-        self._draw_rect(svg, x, y, self.colors['rubble'], opacity=0.7)
-        # Add rock shapes
-        cx, cy = self._get_center(x, y)
-        for i in range(5):
-            rx = cx - 4 + random.randint(0, 8)
-            ry = cy - 4 + random.randint(0, 8)
-            size = random.randint(1, 3)
-            svg += f'<circle cx="{rx}" cy="{ry}" r="{size}" fill="#7D6608" />'
-    
-    def _draw_door(self, svg, x, y):
-        """Draw door"""
-        cx, cy = self._get_center(x, y)
-        svg += f'<rect x="{cx-4}" y="{cy-8}" width="8" height="16" fill="{self.colors["door"]}" />'
-    
-    def _draw_monster(self, svg, x, y, monster_id):
-        """Draw monster"""
-        cx, cy = self._get_center(x, y)
-        svg += f'<circle cx="{cx}" cy="{cy}" r="6" fill="{self.colors["monster"]}" />'
-        svg += f'<text x="{cx}" y="{cy+5}" font-size="8" text-anchor="middle" fill="white">M</text>'
-    
-    def _draw_party(self, svg, x, y):
-        """Draw party position"""
-        cx, cy = self._get_center(x, y)
-        svg += f'<circle cx="{cx}" cy="{cy}" r="8" fill="{self.colors["party"]}" />'
-        svg += f'<text x="{cx}" y="{cy+5}" font-size="10" text-anchor="middle" fill="white">P</text>'
-    
-    def _draw_rect(self, svg, x, y, color, opacity=1.0):
-        """Draw rectangle for cell"""
-        size = self.cell_size
-        svg += f'<rect x="{y*size}" y="{x*size}" width="{size}" height="{size}" fill="{color}" opacity="{opacity}" />'
-    
-    def _get_center(self, x, y):
-        """Get center coordinates of a cell"""
-        half = self.cell_size / 2
-        return (y * self.cell_size + half, x * self.cell_size + half)
-    
-    def render(self, dungeon_state, visible_area=None):
-        for x in range(len(dungeon_state.grid)):
-            for y in range(len(dungeon_state.grid[0])):
-                cell = dungeon_state.grid[x][y]
+        if orientation == 'horizontal':
+            center_y = y + self.cell_size // 2
+            for i in range(1, step_count + 1):
+                if stair_type == 'down':
+                    # Tapered for down stairs
+                    length = max_length * (i / step_count)
+                else:  # Up stairs
+                    length = max_length
                 
-                # Skip unexplored cells
-                if not cell.visibility['explored']:
-                    self._draw_unexplored(x, y)
-                    continue
-                    
-                # Draw base type
-                self._draw_base_cell(x, y, cell.current_type)
+                x_pos = x + i * spacing
+                draw.line([
+                    x_pos, center_y - length//2,
+                    x_pos, center_y + length//2
+                ], fill=step_color, width=2)
+        else:
+            center_x = x + self.cell_size // 2
+            for i in range(1, step_count + 1):
+                if stair_type == 'down':
+                    length = max_length * (i / step_count)
+                else:  # Up stairs
+                    length = max_length
                 
-                # Draw features
-                for feature in cell.features:
-                    self._draw_feature(x, y, feature)
-                    
-                # Draw visibility overlay
-                if not cell.visibility['visible']:
-                    self._draw_fog(x, y)
+                y_pos = y + i * spacing
+                draw.line([
+                    center_x - length//2, y_pos,
+                    center_x + length//2, y_pos
+                ], fill=step_color, width=2)
+                
+        # Add directional indicator
+        arrow_size = self.cell_size // 8
+        if stair_type == 'down':
+            if orientation == 'horizontal':
+                points = [
+                    (x + self.cell_size - arrow_size, center_y),
+                    (x + self.cell_size - arrow_size*2, center_y - arrow_size),
+                    (x + self.cell_size - arrow_size*2, center_y + arrow_size)
+                ]
+            else:
+                points = [
+                    (center_x, y + self.cell_size - arrow_size),
+                    (center_x - arrow_size, y + self.cell_size - arrow_size*2),
+                    (center_x + arrow_size, y + self.cell_size - arrow_size*2)
+                ]
+            draw.polygon(points, fill=(200, 0, 0))
+    
+    def generate_legend_icon(self, element_type, icon_size=30):
+        """Generate consistent legend icon"""
+        img = Image.new('RGB', (icon_size, icon_size), (52, 73, 94))
+        draw = ImageDraw.Draw(img)
+        
+        # Draw cell background
+        margin = 1
+        draw.rectangle([margin, margin, icon_size-margin-1, icon_size-margin-1], 
+                      fill=(255, 255, 255))
+        
+        # Draw element
+        if element_type == 'arch':
+            self.draw_door(draw, 0, 0, 'arch', 'horizontal')
+        elif element_type == 'open_door':
+            self.draw_door(draw, 0, 0, 'door', 'horizontal')
+        elif element_type == 'locked_door':
+            self.draw_door(draw, 0, 0, 'locked', 'horizontal')
+        elif element_type == 'trapped_door':
+            self.draw_door(draw, 0, 0, 'trapped', 'horizontal')
+        elif element_type == 'secret_door':
+            self.draw_door(draw, 0, 0, 'secret', 'horizontal')
+        elif element_type == 'portcullis':
+            self.draw_door(draw, 0, 0, 'portc', 'horizontal')
+        elif element_type == 'stairs_up':
+            self.draw_stairs(draw, 0, 0, 'up', 'horizontal')
+        elif element_type == 'stairs_down':
+            self.draw_stairs(draw, 0, 0, 'down', 'horizontal')
+            
+        return img
+    
+    def generate_legend_icons(self, icon_size=30):
+        """Generate all legend icons"""
+        elements = [
+            'arch', 'open_door', 'locked_door', 'trapped_door',
+            'secret_door', 'portcullis', 'stairs_up', 'stairs_down'
+        ]
+        return {e: self.generate_legend_icon(e, icon_size) for e in elements}

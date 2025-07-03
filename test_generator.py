@@ -291,6 +291,29 @@ class TestDungeonGenerator(unittest.TestCase):
             img.save("test_error_handling.png")
             print("Error image saved as test_error_handling.png")
 
+    # Add this to test_generator.py to verify the fix
+    def test_enhanced_generator_inheritance(self):
+        print("\nTesting EnhancedDungeonGenerator inheritance...")
+        options = {
+            'n_rows': 39, 
+            'n_cols': 39,
+            'theme': 'test',
+            'feature_density': 0.1
+        }
+        gen = EnhancedDungeonGenerator(options)
+        self.assertIsInstance(gen, DungeonGenerator)
+        
+        # Verify method resolution
+        self.assertTrue(hasattr(gen, 'create_dungeon'))
+        self.assertTrue(hasattr(gen, 'add_thematic_features'))
+        
+        # Test dungeon creation
+        data = gen.create_dungeon()
+        self.assertIn('grid', data)
+        self.assertIn('stairs', data)
+        self.assertIn('rooms', data)
+        print("Enhanced generator inheritance test passed!")
+
 class TestBaseGenerator(unittest.TestCase):
     def test_direct_generator(self):
         print("\nTesting direct generator...")

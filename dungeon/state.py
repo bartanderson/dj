@@ -1,4 +1,5 @@
 #dungeon\state.py
+from dungeon.renderer import DungeonRenderer
 from dungeon.generator import DungeonGenerator
 from typing import List, Dict, Any, Tuple, Optional
 from PIL import Image, ImageDraw
@@ -648,7 +649,6 @@ class DungeonState:
 class EnhancedDungeonState(DungeonState):
     def __init__(self, generator):
         print("Initializing EnhancedDungeonState")
-        super().__init__(generator)
         self.generator = generator
         self.theme = generator.opts.get('theme', 'dungeon')
         self.dynamic_features = {}
@@ -656,15 +656,21 @@ class EnhancedDungeonState(DungeonState):
         self.ai_notes = {}  # For DM's private notes about areas
         self.puzzles = {}   # Add this line to initialize puzzles dictionary
 
+        # Manually initialize what we need
+        self.grid = generator.cell
+        self.rooms = generator.room
+        self.doors = generator.doorList
+        self.stairs = generator.stairList
+        start_position = self.determine_start_position()
+        
+        # Initialize visibility system
+        self.visibility = VisibilitySystem(self.grid, start_position)
+        self.visibility.update_visibility()
+        self.party_position = start_position
+        
         # DEBUG: Verify grid content
         print(f"EnhancedDungeonState initialized with grid size: {len(self.grid)}x{len(self.grid[0]) if self.grid else 'N/A'}")
-        
         self.validate_grid()
-
-        # Ensure grid is properly initialized
-        if not self.grid or len(self.grid) == 0 or len(self.grid[0]) == 0:
-            print("Debug: Grid empty after parent init, regenerating")
-            self.grid = self._convert_generator_output(generator)
 
     def get_cell_appearance(self, cell, debug_show_all=False):
         """Determine how a cell should appear based on state"""
@@ -930,6 +936,7 @@ class EnhancedDungeonState(DungeonState):
         return 'door'
 
     def draw_visible_cell(self, draw, x, y, size, cell, effective_type):
+        renderer = DungeonRenderer(cell_size=size)
         try:
             #print(f"🐛 DEBUG: Drawing door at ({cell.x},{cell.y})")
             # Base cell drawing (WORKS FINE)
@@ -940,34 +947,10 @@ class EnhancedDungeonState(DungeonState):
                 draw.rectangle([x, y, x+size, y+size], fill=DungeonColors.CORRIDOR)  # Light gray for corridors
             elif effective_type & DungeonGenerator.BLOCKED:
                 draw.rectangle([x, y, x+size, y+size], fill=DungeonColors.WALL)     # Dark gray for walls
-            
-            # DIRECT DOOR HANDLING (NO HELPER METHODS)
             if effective_type & DungeonGenerator.DOORSPACE:
-                # Determine door type directly
-                if cell.current_type & DungeonGenerator.ARCH: 
-                    door_type = 'arch'
-                elif cell.current_type & DungeonGenerator.LOCKED: 
-                    door_type = 'locked'
-                elif cell.current_type & DungeonGenerator.TRAPPED: 
-                    door_type = 'trapped'
-                elif cell.current_type & DungeonGenerator.SECRET: 
-                    door_type = 'secret'
-                elif cell.current_type & DungeonGenerator.PORTC: 
-                    door_type = 'portc'
-                else: 
-                    door_type = 'door'
-
-                # print(f"  Door type: {door_type}")
-                    
-                # SIMPLIFIED ORIENTATION DETECTION
-                orientation = 'vertical'  # Default
-                if (cell.x > 0 and cell.x < len(self.grid)-1 and
-                    self.grid[cell.x-1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR) and
-                    self.grid[cell.x+1][cell.y].current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR)):
-                    orientation = 'horizontal'
-                
-                # Use your original door drawing code
-                self.draw_door_basic(draw, x, y, size, door_type, orientation)
+                door_type = self.get_door_type_from_cell(cell)
+                orientation = self.get_door_orientation(x//size, y//size)
+                renderer.draw_door(draw, x, y, door_type, orientation)
 
             # ADD MODIFICATION RENDERING HERE (AFTER BASE, BEFORE FEATURES)
             for mod in cell.modifications:
@@ -985,14 +968,13 @@ class EnhancedDungeonState(DungeonState):
             if cell.features:
                 self.draw_features(draw, x, y, size, cell.features)
             
-            # STAIRS (WORKS FINE)
             if effective_type & DungeonGenerator.STAIRS:
                 for stair in self.stairs:
                     if (cell.x, cell.y) == stair['position']:
                         dr = stair['next_position'][0] - cell.x
                         dc = stair['next_position'][1] - cell.y
                         orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-                        self.draw_stairs(draw, x, y, size, stair['key'], orientation)
+                        renderer.draw_stairs(draw, x, y, stair['key'], orientation)
 
             # Draw labels LAST so they're on top
             if cell.current_type & DungeonGenerator.LABEL:
@@ -1003,100 +985,100 @@ class EnhancedDungeonState(DungeonState):
             draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
             draw.text((x+5, y+5), "ERR", fill=(0, 0, 0))
 
-    def draw_door_basic(self, draw, x, y, size, door_type, orientation):
-        """Your door drawing code with enhanced visibility"""
-        is_horizontal = (orientation == 'horizontal')
-        center_x = x + size // 2
-        center_y = y + size // 2
-        door_width = size // 3
-        arch_height = size // 6
+    # def draw_door_basic(self, draw, x, y, size, door_type, orientation):
+    #     """Your door drawing code with enhanced visibility"""
+    #     is_horizontal = (orientation == 'horizontal')
+    #     center_x = x + size // 2
+    #     center_y = y + size // 2
+    #     door_width = size // 3
+    #     arch_height = size // 6
         
-        # Use distinct colors for better visibility
-        door_color = DungeonColors.DOOR    # Medium brown
-        arch_color = DungeonColors.ARCH   # Gray
-        outline_color = DungeonColors.STAIRS      # Black
+    #     # Use distinct colors for better visibility
+    #     door_color = DungeonColors.DOOR    # Medium brown
+    #     arch_color = DungeonColors.ARCH   # Gray
+    #     outline_color = DungeonColors.STAIRS      # Black
         
-        # Draw arches for all visible doors
-        if door_type != 'secret':
-            if is_horizontal:
-                # Top arch
-                draw.rectangle([
-                    center_x - door_width//2, y,
-                    center_x + door_width//2, y + arch_height
-                ], fill=arch_color, outline=outline_color)
-                # Bottom arch
-                draw.rectangle([
-                    center_x - door_width//2, y + size - arch_height,
-                    center_x + door_width//2, y + size
-                ], fill=arch_color, outline=outline_color)
-            else:
-                # Left arch
-                draw.rectangle([
-                    x, center_y - door_width//2,
-                    x + arch_height, center_y + door_width//2
-                ], fill=arch_color, outline=outline_color)
-                # Right arch
-                draw.rectangle([
-                    x + size - arch_height, center_y - door_width//2,
-                    x + size, center_y + door_width//2
-                ], fill=arch_color, outline=outline_color)
+    #     # Draw arches for all visible doors
+    #     if door_type != 'secret':
+    #         if is_horizontal:
+    #             # Top arch
+    #             draw.rectangle([
+    #                 center_x - door_width//2, y,
+    #                 center_x + door_width//2, y + arch_height
+    #             ], fill=arch_color, outline=outline_color)
+    #             # Bottom arch
+    #             draw.rectangle([
+    #                 center_x - door_width//2, y + size - arch_height,
+    #                 center_x + door_width//2, y + size
+    #             ], fill=arch_color, outline=outline_color)
+    #         else:
+    #             # Left arch
+    #             draw.rectangle([
+    #                 x, center_y - door_width//2,
+    #                 x + arch_height, center_y + door_width//2
+    #             ], fill=arch_color, outline=outline_color)
+    #             # Right arch
+    #             draw.rectangle([
+    #                 x + size - arch_height, center_y - door_width//2,
+    #                 x + size, center_y + door_width//2
+    #             ], fill=arch_color, outline=outline_color)
 
-        # Draw door slab for appropriate types
-        if door_type in ['door', 'locked', 'trapped', 'portc']:
-            if is_horizontal:
-                draw.rectangle([
-                    center_x - door_width//2, y + arch_height,
-                    center_x + door_width//2, y + size - arch_height
-                ], fill=door_color, outline=outline_color)
-            else:
-                draw.rectangle([
-                    x + arch_height, center_y - door_width//2,
-                    x + size - arch_height, center_y + door_width//2
-                ], fill=door_color, outline=outline_color)
+    #     # Draw door slab for appropriate types
+    #     if door_type in ['door', 'locked', 'trapped', 'portc']:
+    #         if is_horizontal:
+    #             draw.rectangle([
+    #                 center_x - door_width//2, y + arch_height,
+    #                 center_x + door_width//2, y + size - arch_height
+    #             ], fill=door_color, outline=outline_color)
+    #         else:
+    #             draw.rectangle([
+    #                 x + arch_height, center_y - door_width//2,
+    #                 x + size - arch_height, center_y + door_width//2
+    #             ], fill=door_color, outline=outline_color)
 
-        # Add special symbols
-        if door_type == 'locked':
-            # Diamond lock symbol
-            lock_size = size // 6
-            diamond = [
-                (center_x, center_y - lock_size//2),
-                (center_x + lock_size//2, center_y),
-                (center_x, center_y + lock_size//2),
-                (center_x - lock_size//2, center_y)
-            ]
-            draw.polygon(diamond, fill=DungeonColors.GRID, outline=outline_color)
+    #     # Add special symbols
+    #     if door_type == 'locked':
+    #         # Diamond lock symbol
+    #         lock_size = size // 6
+    #         diamond = [
+    #             (center_x, center_y - lock_size//2),
+    #             (center_x + lock_size//2, center_y),
+    #             (center_x, center_y + lock_size//2),
+    #             (center_x - lock_size//2, center_y)
+    #         ]
+    #         draw.polygon(diamond, fill=DungeonColors.GRID, outline=outline_color)
         
-        elif door_type == 'portc':
-            # Portcullis bars as 3 filled circles
-            dot_radius = max(2, size // 12)  # Increased size for visibility
-            dot_count = 3
-            dot_spacing = size / (dot_count + 1)
+    #     elif door_type == 'portc':
+    #         # Portcullis bars as 3 filled circles
+    #         dot_radius = max(2, size // 12)  # Increased size for visibility
+    #         dot_count = 3
+    #         dot_spacing = size / (dot_count + 1)
             
-            if is_horizontal:
-                # Vertical bars
-                for i in range(1, dot_count + 1):
-                    dot_y = y + i * dot_spacing
-                    draw.ellipse([
-                        center_x - dot_radius, dot_y - dot_radius,
-                        center_x + dot_radius, dot_y + dot_radius
-                    ], fill=(80, 80, 80))
-            else:
-                # Horizontal bars
-                for i in range(1, dot_count + 1):
-                    dot_x = x + i * dot_spacing
-                    draw.ellipse([
-                        dot_x - dot_radius, center_y - dot_radius,
-                        dot_x + dot_radius, center_y + dot_radius
-                    ], fill=(80, 80, 80))
+    #         if is_horizontal:
+    #             # Vertical bars
+    #             for i in range(1, dot_count + 1):
+    #                 dot_y = y + i * dot_spacing
+    #                 draw.ellipse([
+    #                     center_x - dot_radius, dot_y - dot_radius,
+    #                     center_x + dot_radius, dot_y + dot_radius
+    #                 ], fill=(80, 80, 80))
+    #         else:
+    #             # Horizontal bars
+    #             for i in range(1, dot_count + 1):
+    #                 dot_x = x + i * dot_spacing
+    #                 draw.ellipse([
+    #                     dot_x - dot_radius, center_y - dot_radius,
+    #                     dot_x + dot_radius, center_y + dot_radius
+    #                 ], fill=(80, 80, 80))
         
-        elif door_type == 'secret':
-            # Cover with wall color but add subtle indicator
-            draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
-            # Small secret symbol
-            draw.line([
-                (x + size//4, y + size//2),
-                (x + 3*size//4, y + size//2)
-            ], fill=(150, 150, 200), width=2)
+    #     elif door_type == 'secret':
+    #         # Cover with wall color but add subtle indicator
+    #         draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
+    #         # Small secret symbol
+    #         draw.line([
+    #             (x + size//4, y + size//2),
+    #             (x + 3*size//4, y + size//2)
+    #         ], fill=(150, 150, 200), width=2)
 
     def draw_label(self, draw, x, y, size, cell):
         """Draw cell label if present"""
@@ -1203,95 +1185,95 @@ class EnhancedDungeonState(DungeonState):
         cell = self.grid[x][y]
         return bool(self.current_type & (DungeonGenerator.ROOM | DungeonGenerator.CORRIDOR))
 
-    def draw_door(self, draw, x, y, size, door_type, orientation):
-        """Draw a door with proper detail and orientation"""
-        try:
-            is_horizontal = (orientation == 'vertical')
-            center_x = x + size // 2
-            center_y = y + size // 2
-            door_width = size // 3
-            arch_height = size // 6
+    # def draw_door(self, draw, x, y, size, door_type, orientation):
+    #     """Draw a door with proper detail and orientation"""
+    #     try:
+    #         is_horizontal = (orientation == 'vertical')
+    #         center_x = x + size // 2
+    #         center_y = y + size // 2
+    #         door_width = size // 3
+    #         arch_height = size // 6
             
-            # Draw arches for all visible doors (except secrets)
-            if door_type != 'secret':
-                if is_horizontal:
-                    # Top and bottom arches
-                    draw.rectangle([
-                        center_x - door_width//2, y,
-                        center_x + door_width//2, y + arch_height
-                    ], outline=(0, 0, 0))
-                    draw.rectangle([
-                        center_x - door_width//2, y + size - arch_height,
-                        center_x + door_width//2, y + size
-                    ], outline=(0, 0, 0))
-                else:
-                    # Left and right arches
-                    draw.rectangle([
-                        x, center_y - door_width//2,
-                        x + arch_height, center_y + door_width//2
-                    ], outline=(0, 0, 0))
-                    draw.rectangle([
-                        x + size - arch_height, center_y - door_width//2,
-                        x + size, center_y + door_width//2
-                    ], outline=(0, 0, 0))
+    #         # Draw arches for all visible doors (except secrets)
+    #         if door_type != 'secret':
+    #             if is_horizontal:
+    #                 # Top and bottom arches
+    #                 draw.rectangle([
+    #                     center_x - door_width//2, y,
+    #                     center_x + door_width//2, y + arch_height
+    #                 ], outline=(0, 0, 0))
+    #                 draw.rectangle([
+    #                     center_x - door_width//2, y + size - arch_height,
+    #                     center_x + door_width//2, y + size
+    #                 ], outline=(0, 0, 0))
+    #             else:
+    #                 # Left and right arches
+    #                 draw.rectangle([
+    #                     x, center_y - door_width//2,
+    #                     x + arch_height, center_y + door_width//2
+    #                 ], outline=(0, 0, 0))
+    #                 draw.rectangle([
+    #                     x + size - arch_height, center_y - door_width//2,
+    #                     x + size, center_y + door_width//2
+    #                 ], outline=(0, 0, 0))
 
-            # Draw door slab for appropriate types
-            if door_type in ['door', 'locked', 'trapped', 'portc']:
-                if is_horizontal:
-                    draw.rectangle([
-                        center_x - door_width//2, y + arch_height,
-                        center_x + door_width//2, y + size - arch_height
-                    ], fill=(139, 69, 19), outline=(0, 0, 0))
-                else:
-                    draw.rectangle([
-                        x + arch_height, center_y - door_width//2,
-                        x + size - arch_height, center_y + door_width//2
-                    ], fill=(139, 69, 19), outline=(0, 0, 0))
+    #         # Draw door slab for appropriate types
+    #         if door_type in ['door', 'locked', 'trapped', 'portc']:
+    #             if is_horizontal:
+    #                 draw.rectangle([
+    #                     center_x - door_width//2, y + arch_height,
+    #                     center_x + door_width//2, y + size - arch_height
+    #                 ], fill=(139, 69, 19), outline=(0, 0, 0))
+    #             else:
+    #                 draw.rectangle([
+    #                     x + arch_height, center_y - door_width//2,
+    #                     x + size - arch_height, center_y + door_width//2
+    #                 ], fill=(139, 69, 19), outline=(0, 0, 0))
 
-            # Add special symbols
-            if door_type == 'locked':
-                # Diamond lock symbol
-                lock_size = size // 6
-                diamond = [
-                    (center_x, center_y - lock_size//2),
-                    (center_x + lock_size//2, center_y),
-                    (center_x, center_y + lock_size//2),
-                    (center_x - lock_size//2, center_y)
-                ]
-                draw.polygon(diamond, fill=(100, 100, 100), outline=(0, 0, 0))
+    #         # Add special symbols
+    #         if door_type == 'locked':
+    #             # Diamond lock symbol
+    #             lock_size = size // 6
+    #             diamond = [
+    #                 (center_x, center_y - lock_size//2),
+    #                 (center_x + lock_size//2, center_y),
+    #                 (center_x, center_y + lock_size//2),
+    #                 (center_x - lock_size//2, center_y)
+    #             ]
+    #             draw.polygon(diamond, fill=(100, 100, 100), outline=(0, 0, 0))
             
-            elif door_type == 'portc':
-                # Portcullis bars as 3 filled circles
-                dot_radius = max(1, size // 12)
-                dot_count = 3
-                dot_spacing = size / (dot_count + 1)
+    #         elif door_type == 'portc':
+    #             # Portcullis bars as 3 filled circles
+    #             dot_radius = max(1, size // 12)
+    #             dot_count = 3
+    #             dot_spacing = size / (dot_count + 1)
                 
-                if is_horizontal:
-                    # Vertical bars
-                    for i in range(1, dot_count + 1):
-                        dot_y = y + i * dot_spacing
-                        draw.ellipse([
-                            center_x - dot_radius, dot_y - dot_radius,
-                            center_x + dot_radius, dot_y + dot_radius
-                        ], fill=(0, 0, 0))
-                else:
-                    # Horizontal bars
-                    for i in range(1, dot_count + 1):
-                        dot_x = x + i * dot_spacing
-                        draw.ellipse([
-                            dot_x - dot_radius, center_y - dot_radius,
-                            dot_x + dot_radius, center_y + dot_radius
-                        ], fill=(0, 0, 0))
+    #             if is_horizontal:
+    #                 # Vertical bars
+    #                 for i in range(1, dot_count + 1):
+    #                     dot_y = y + i * dot_spacing
+    #                     draw.ellipse([
+    #                         center_x - dot_radius, dot_y - dot_radius,
+    #                         center_x + dot_radius, dot_y + dot_radius
+    #                     ], fill=(0, 0, 0))
+    #             else:
+    #                 # Horizontal bars
+    #                 for i in range(1, dot_count + 1):
+    #                     dot_x = x + i * dot_spacing
+    #                     draw.ellipse([
+    #                         dot_x - dot_radius, center_y - dot_radius,
+    #                         dot_x + dot_radius, center_y + dot_radius
+    #                     ], fill=(0, 0, 0))
             
-            elif door_type == 'secret':
-                # Cover with wall color
-                draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
+    #         elif door_type == 'secret':
+    #             # Cover with wall color
+    #             draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
                 
-        except Exception as e:
-            print(f"Error drawing door at ({x},{y}): {str(e)}")
-            # Draw error indicator
-            draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
-            draw.text((x+5, y+5), "DOOR ERR", fill=(0, 0, 0))
+    #     except Exception as e:
+    #         print(f"Error drawing door at ({x},{y}): {str(e)}")
+    #         # Draw error indicator
+    #         draw.rectangle([x, y, x+size, y+size], fill=(255, 0, 0))
+    #         draw.text((x+5, y+5), "DOOR ERR", fill=(0, 0, 0))
 
 
     def generate_legend_icons(self, icon_size=30):
@@ -1410,36 +1392,36 @@ class EnhancedDungeonState(DungeonState):
         elif cell.current_type & DungeonGenerator.STAIRS:
             self.draw_stairs(draw, x_pos, y_pos, size, cell)
 
-    def draw_stairs(self, draw, x, y, size, stair_type, orientation):
-        """Draw stairs that look identical whether in grid or legend"""
-        step_count = 5
-        spacing = size / (step_count + 1)
-        max_length = size * 0.8
+    # def draw_stairs(self, draw, x, y, size, stair_type, orientation):
+    #     """Draw stairs that look identical whether in grid or legend"""
+    #     step_count = 5
+    #     spacing = size / (step_count + 1)
+    #     max_length = size * 0.8
 
-        if orientation == 'vertical':
-            center_y = y + size // 2
-            for i in range(1, step_count + 1):
-                if stair_type == 'up':
-                    length = max_length
-                else:  # Down stairs
-                    length = max_length * (i / step_count)
-                x_pos = x + i * spacing
-                draw.line([
-                    x_pos, center_y - length//2,
-                    x_pos, center_y + length//2
-                ], fill=(0, 0, 0), width=1)
-        else:
-            center_x = x + size // 2
-            for i in range(1, step_count + 1):
-                if stair_type == 'up':
-                    length = max_length
-                else:  # Down stairs
-                    length = max_length * (i / step_count)
-                y_pos = y + i * spacing
-                draw.line([
-                    center_x - length//2, y_pos,
-                    center_x + length//2, y_pos
-                ], fill=(0, 0, 0), width=1)
+    #     if orientation == 'vertical':
+    #         center_y = y + size // 2
+    #         for i in range(1, step_count + 1):
+    #             if stair_type == 'up':
+    #                 length = max_length
+    #             else:  # Down stairs
+    #                 length = max_length * (i / step_count)
+    #             x_pos = x + i * spacing
+    #             draw.line([
+    #                 x_pos, center_y - length//2,
+    #                 x_pos, center_y + length//2
+    #             ], fill=(0, 0, 0), width=1)
+    #     else:
+    #         center_x = x + size // 2
+    #         for i in range(1, step_count + 1):
+    #             if stair_type == 'up':
+    #                 length = max_length
+    #             else:  # Down stairs
+    #                 length = max_length * (i / step_count)
+    #             y_pos = y + i * spacing
+    #             draw.line([
+    #                 center_x - length//2, y_pos,
+    #                 center_x + length//2, y_pos
+    #             ], fill=(0, 0, 0), width=1)
     
     def convert_to_generator_grid(self):
         """Convert state grid back to generator format with visibility"""

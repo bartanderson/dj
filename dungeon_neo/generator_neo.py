@@ -1,39 +1,34 @@
-# dungeon/generator.py - Enhanced dj.py with AI integration points
 import random
 import math
-from typing import List, Dict, Any, Tuple, Optional, Union
-from PIL import ImageFont, Image, ImageDraw
-from dungeon.objects import FEATURE_TEMPLATES
-from dungeon.renderer import DungeonRenderer 
+from typing import List, Dict, Any, Tuple, Optional
+from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
 
-class DungeonGenerator:
-    # Cell bit flags
-    NOTHING     = 0x00000000
-    BLOCKED     = 0x00000001
-    ROOM        = 0x00000002
-    CORRIDOR    = 0x00000004
-    PERIMETER   = 0x00000010
-    ENTRANCE    = 0x00000020
-    ROOM_ID     = 0x0000FFC0
-    ARCH        = 0x00010000
-    DOOR        = 0x00020000
-    LOCKED      = 0x00040000
-    TRAPPED     = 0x00080000
-    SECRET      = 0x00100000
-    PORTC       = 0x00200000
-    STAIR_DN    = 0x00400000
-    STAIR_UP    = 0x00800000
-    LABEL       = 0xFF000000
+class DungeonGeneratorNeo:
 
-    #OPENSPACE   = ROOM | CORRIDOR # note that any use of self.OPENSPACE was replaced by (self.ROOM | self.CORRIDOR)
-    # it is a handy concept but created a slight issue in its use as it is a logical construct and the individual
-    # items need to be treated individually and seperated by logic and am doing that
-    DOORSPACE   = ARCH | DOOR | LOCKED | TRAPPED | SECRET | PORTC
-    ESPACE      = ENTRANCE | DOORSPACE | 0xFF000000
-    STAIRS      = STAIR_DN | STAIR_UP
-    BLOCK_ROOM  = BLOCKED | ROOM
-    BLOCK_CORR  = BLOCKED | PERIMETER | CORRIDOR
-    BLOCK_DOOR  = BLOCKED | DOORSPACE
+    NOTHING = CELL_FLAGS['NOTHING']
+    BLOCKED = CELL_FLAGS['BLOCKED']
+    ROOM = CELL_FLAGS['ROOM']
+    CORRIDOR = CELL_FLAGS['CORRIDOR']
+    PERIMETER = CELL_FLAGS['PERIMETER']
+    ENTRANCE = CELL_FLAGS['ENTRANCE']
+    ROOM_ID = CELL_FLAGS['ROOM_ID']
+    ARCH = CELL_FLAGS['ARCH']
+    DOOR = CELL_FLAGS['DOOR']
+    LOCKED = CELL_FLAGS['LOCKED']
+    TRAPPED = CELL_FLAGS['TRAPPED']
+    SECRET = CELL_FLAGS['SECRET']
+    PORTC = CELL_FLAGS['PORTC']
+    STAIR_DN = CELL_FLAGS['STAIR_DN']
+    STAIR_UP = CELL_FLAGS['STAIR_UP']
+    LABEL = CELL_FLAGS['LABEL']
+
+    # Composite flags
+    DOORSPACE = CELL_FLAGS['DOORSPACE']
+    ESPACE = CELL_FLAGS['ESPACE']
+    STAIRS = CELL_FLAGS['STAIRS']
+    BLOCK_ROOM = CELL_FLAGS['BLOCK_ROOM']
+    BLOCK_CORR = CELL_FLAGS['BLOCK_CORR']
+    BLOCK_DOOR = CELL_FLAGS['BLOCK_DOOR']
 
     @property
     def rooms(self):
@@ -55,6 +50,7 @@ class DungeonGenerator:
                     corridors.append(cell)
         return corridors
 
+
     def __init__(self, options=None):
         self.opts = {
             'seed': 'None',
@@ -68,7 +64,7 @@ class DungeonGenerator:
             'remove_deadends': 50,
             'add_stairs': 2,
             'map_style': 'Standard',
-            'cell_size': 18,
+            #'cell_size': 18, handled in renderer options
             'grid': 'Square'
         }
         
@@ -83,13 +79,10 @@ class DungeonGenerator:
         self.rand = random.Random(self.opts['seed'])
         
         # Direction vectors
-        self.di = {'north': -1, 'south': 1, 'west': 0, 'east': 0}
-        self.dj = {'north': 0, 'south': 0, 'west': -1, 'east': 1}
+        self.di = {d: vec[0] for d, vec in DIRECTION_VECTORS.items()}
+        self.dj = {d: vec[1] for d, vec in DIRECTION_VECTORS.items()}
         self.dj_dirs = list(self.dj.keys())
-        self.opposite = {
-            'north': 'south', 'south': 'north',
-            'west': 'east', 'east': 'west'
-        }
+        self.opposite = OPPOSITE_DIRECTIONS
         
         # Layout configurations
         self.dungeon_layout = {
@@ -155,78 +148,45 @@ class DungeonGenerator:
             }
         }
         
-        # Initialize dungeon structures
+        self._initialize_structures()
+
+        
+    def _initialize_structures(self):
         self.cell = None
         self.room = []
         self.doorList = []
         self.stairList = []
         self.n_rooms = 0
         self.last_room_id = 0
-
-    def get_rooms(self):
-        return self.room
+        self.n_i = 0
+        self.n_j = 0
+        self.max_row = 0
+        self.max_col = 0
+        self.room_base = 0
+        self.room_radix = 0
         
-    def get_stairs(self):
-        return self.stairList
-        
-    # Add these properties with proper setters
-    @property
-    def rooms(self):
-        return self.room
-        
-    @rooms.setter
-    def rooms(self, value):
-        self.room = value
-        
-    @property
-    def stairs(self):
-        return self.stairList
-        
-    @stairs.setter
-    def stairs(self, value):
-        self.stairList = value
-
-def generate_legend_icons(self, icon_size=30):
-    """Generate consistent legend icons using the new renderer"""
-    try:
-        # Try absolute import first
-        from dungeon.renderer import DungeonRenderer
-        return DungeonRenderer().generate_legend_icons(icon_size)
-    except ImportError:
-        # Fallback for test environment
-        from src.dungeon.renderer import DungeonRenderer
-        return DungeonRenderer().generate_legend_icons(icon_size)
-    except Exception as e:
-        print(f"Legend generation error: {str(e)}")
-        return {}
-
     def create_dungeon(self):
         self.init_dungeon_size()
-        print(f"Initialized dungeon size: {self.opts['n_rows']}x{self.opts['n_cols']}")  # Debug
         self.init_cells()
-        print("Cells initialized")  # Debug
         self.emplace_rooms()
-        print(f"Rooms placed: {len(self.room)}")  # Debug
         self.open_rooms()
-        print("Doors placed")  # Debug
         self.label_rooms()
         self.corridors()
-
+        
         if self.opts['add_stairs']:
             self.emplace_stairs()
-            print(f"Stairs placed: {len(self.stairs)}")  # Debug
                 
         self.clean_dungeon()
-        # Return structured data for DungeonState
         return {
             'grid': self.cell,
-            'stairs': self.stairs,
+            'stairs': self.stairList,
             'doors': self.doorList,
             'rooms': self.room,
             'n_rows': self.opts['n_rows'],
             'n_cols': self.opts['n_cols']
         }
-
+    
+    # Core generation methods
     def init_dungeon_size(self):
         self.n_i = self.opts['n_rows'] // 2
         self.n_j = self.opts['n_cols'] // 2
@@ -251,7 +211,7 @@ def generate_legend_icons(self, icon_size=30):
             self.mask_cells(layout)
         elif self.opts['dungeon_layout'] == 'Round':
             self.round_mask()
-
+        
     def mask_cells(self, mask):
         r_scale = len(mask) / (self.opts['n_rows'] + 1)
         c_scale = len(mask[0]) / (self.opts['n_cols'] + 1)
@@ -276,7 +236,7 @@ def generate_legend_icons(self, icon_size=30):
                     self.cell[r][c] = self.BLOCKED
 
     def emplace_rooms(self):
-        if self.opts['room_layout'] == 'Packed':
+        if self.opts.get('room_layout') == 'Packed':
             self.pack_rooms()
         else:
             self.scatter_rooms()
@@ -538,6 +498,7 @@ def generate_legend_icons(self, icon_size=30):
             return self.SECRET
         else:
             return self.PORTC
+
 
     def label_rooms(self):
         for room in self.room:
@@ -828,17 +789,17 @@ def generate_legend_icons(self, icon_size=30):
         return 'horizontal'  # Default to horizontal
 
     def get_door_type(self, cell):
-        if cell & self.ARCH:
+        if cell & ARCH:
             return 'arch'
-        if cell & self.DOOR:
+        if cell & DOOR:
             return 'open'
-        if cell & self.LOCKED:
+        if cell & LOCKED:
             return 'lock'
-        if cell & self.TRAPPED:
+        if cell & TRAPPED:
             return 'trap'
-        if cell & self.SECRET:
+        if cell & SECRET:
             return 'secret'
-        if cell & self.PORTC:
+        if cell & PORTC:
             return 'portc'
         return 'open'
 
@@ -846,458 +807,3 @@ def generate_legend_icons(self, icon_size=30):
         if r < 0 or r > self.opts['n_rows'] or c < 0 or c > self.opts['n_cols']:
             return False
         return bool(self.cell[r][c] & (self.ROOM | self.CORRIDOR))
-
-    # def draw_door_element(self, draw, x, y, cell_size, cell):
-    #     orientation = self.get_door_orientation(x//cell_size, y//cell_size)
-    #     door_type = self.get_door_type(cell)
-        
-    #     is_horizontal = (orientation == 'horizontal')
-    #     center_x = x + cell_size // 2
-    #     center_y = y + cell_size // 2
-    #     door_width = cell_size // 3
-    #     arch_width = cell_size // 6
-    #     symbol_size = cell_size // 6
-
-    #     # Draw arch for all visible doors
-    #     if door_type != 'secret':
-    #         if is_horizontal:
-    #             # Top arch
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y,
-    #                 center_x + door_width//2, y + arch_width
-    #             ], outline=(0, 0, 0))
-    #             # Bottom arch
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y + cell_size - arch_width,
-    #                 center_x + door_width//2, y + cell_size
-    #             ], outline=(0, 0, 0))
-    #         else:
-    #             # Left arch
-    #             draw.rectangle([
-    #                 x, center_y - door_width//2,
-    #                 x + arch_width, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-    #             # Right arch
-    #             draw.rectangle([
-    #                 x + cell_size - arch_width, center_y - door_width//2,
-    #                 x + cell_size, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-
-    #     # Draw door slab for all doors except arch and secret
-    #     if door_type in ['open', 'lock', 'trap', 'portc']:
-    #         if is_horizontal:
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y + arch_width,
-    #                 center_x + door_width//2, y + cell_size - arch_width
-    #             ], outline=(0, 0, 0))
-    #         else:
-    #             draw.rectangle([
-    #                 x + arch_width, center_y - door_width//2,
-    #                 x + cell_size - arch_width, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-
-    #     # Draw specific door features
-    #     if door_type == 'lock':
-    #         # Draw diamond (turned square) for locked door
-    #         half_size = symbol_size // 2
-    #         diamond = [
-    #             (center_x, center_y - half_size),
-    #             (center_x + half_size, center_y),
-    #             (center_x, center_y + half_size),
-    #             (center_x - half_size, center_y)
-    #         ]
-    #         draw.polygon(diamond, outline=(0, 0, 0))
-        
-    #     elif door_type == 'portc':
-    #         # Draw portcullis as 3 filled circles (bars)
-    #         dot_radius = .5 #cell_size // 16
-    #         dot_count = 3
-    #         dot_spacing = cell_size / (dot_count + 1)
-            
-    #         if is_horizontal:
-    #             # Vertical line of dots
-    #             for i in range(1, dot_count + 1):
-    #                 dot_y = y + i * dot_spacing
-    #                 draw.ellipse([
-    #                     center_x - dot_radius, dot_y - dot_radius,
-    #                     center_x + dot_radius, dot_y + dot_radius
-    #                 ], fill=(0, 0, 0))
-    #         else:
-    #             # Horizontal line of dots
-    #             for i in range(1, dot_count + 1):
-    #                 dot_x = x + i * dot_spacing
-    #                 draw.ellipse([
-    #                     dot_x - dot_radius, center_y - dot_radius,
-    #                     dot_x + dot_radius, center_y + dot_radius
-    #                 ], fill=(0, 0, 0))
-        
-    #     elif door_type == 'secret':
-    #         # Secret door appears as wall
-    #         draw.rectangle([x, y, x+cell_size, y+cell_size], fill=(52, 73, 94))
-
-    # def draw_stair_element(self, draw, x, y, cell_size, stair):
-    #     # Determine orientation based on next cell
-    #     dr = stair['next_row'] - stair['row']
-    #     dc = stair['next_col'] - stair['col']
-    #     orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-    #     step_count = 5
-    #     max_length = cell_size * 0.8
-    #     dx = stair['next_col'] - stair['col'] or 0
-    #     dy = stair['next_row'] - stair['row'] or 0
-    #     is_down = (stair['key'] == 'down')
-
-    #     # Determine direction vector
-    #     if abs(dx) > abs(dy):  # Horizontal
-    #         center_y = y + cell_size // 2
-    #         spacing = cell_size / (step_count + 1)
-            
-    #         for i in range(1, step_count + 1):
-    #             if is_down:
-    #                 # Down stairs: arrow pattern (tapered)
-    #                 if dx > 0:  # Right-pointing
-    #                     length = max_length * (i / step_count)
-    #                 else:  # Left-pointing
-    #                     length = max_length * ((step_count - i + 1) / step_count)
-    #             else:
-    #                 # Up stairs: parallel lines (equal length)
-    #                 length = max_length * 0.8
-                    
-    #             x_pos = x + i * spacing
-    #             draw.line([x_pos, center_y - length//2, x_pos, center_y + length//2], 
-    #                      fill=(0,0,0), width=1)
-    #     else:  # Vertical
-    #         center_x = x + cell_size // 2
-    #         spacing = cell_size / (step_count + 1)
-            
-    #         for i in range(1, step_count + 1):
-    #             if is_down:
-    #                 # Down stairs: arrow pattern (tapered)
-    #                 if dy > 0:  # Down-pointing
-    #                     length = max_length * (i / step_count)
-    #                 else:  # Up-pointing
-    #                     length = max_length * ((step_count - i + 1) / step_count)
-    #             else:
-    #                 # Up stairs: parallel lines (equal length)
-    #                 length = max_length * 0.8
-                    
-    #             y_pos = y + i * spacing
-    #             draw.line([center_x - length//2, y_pos, center_x + length//2, y_pos], 
-    #                      fill=(0,0,0), width=1)
-
-    def cell_label(self, cell):
-        """Extract character label from cell"""
-        char_code = (cell >> 24) & 0xFF
-        return chr(char_code) if 32 <= char_code <= 126 else None
-
-    def has_open_space(self, r, c):
-        """Check if cell is open space"""
-        if r < 0 or r > self.opts['n_rows'] or c < 0 or c > self.opts['n_cols']:
-            return False
-        return bool(self.cell[r][c] & (self.ROOM | self.CORRIDOR))
-
-    # def draw_door(self, draw, x, y, size, door_type, orientation):
-    #     """Draw a door that looks identical whether in grid or legend"""
-    #     is_horizontal = (orientation == 'horizontal')
-    #     center_x = x + size // 2
-    #     center_y = y + size // 2
-    #     door_width = size // 3
-    #     arch_height = size // 6
-        
-    #     # Draw arches for all visible doors
-    #     if door_type != 'secret':
-    #         if is_horizontal:
-    #             # Top and bottom arches
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y,
-    #                 center_x + door_width//2, y + arch_height
-    #             ], outline=(0, 0, 0))
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y + size - arch_height,
-    #                 center_x + door_width//2, y + size
-    #             ], outline=(0, 0, 0))
-    #         else:
-    #             # Left and right arches
-    #             draw.rectangle([
-    #                 x, center_y - door_width//2,
-    #                 x + arch_height, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-    #             draw.rectangle([
-    #                 x + size - arch_height, center_y - door_width//2,
-    #                 x + size, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-
-    #     # Draw door slab for appropriate types
-    #     if door_type in ['open', 'lock', 'trap', 'portc']:
-    #         if is_horizontal:
-    #             draw.rectangle([
-    #                 center_x - door_width//2, y + arch_height,
-    #                 center_x + door_width//2, y + size - arch_height
-    #             ], outline=(0, 0, 0))
-    #         else:
-    #             draw.rectangle([
-    #                 x + arch_height, center_y - door_width//2,
-    #                 x + size - arch_height, center_y + door_width//2
-    #             ], outline=(0, 0, 0))
-
-    #     # Add special symbols
-    #     if door_type == 'lock':
-    #         # Diamond lock symbol
-    #         lock_size = size // 6
-    #         diamond = [
-    #             (center_x, center_y - lock_size//2),
-    #             (center_x + lock_size//2, center_y),
-    #             (center_x, center_y + lock_size//2),
-    #             (center_x - lock_size//2, center_y)
-    #         ]
-    #         draw.polygon(diamond, outline=(0, 0, 0))
-        
-    #     elif door_type == 'portc':
-    #         # Portcullis bars as 3 filled circles
-    #         dot_radius = .5 #size // 12
-    #         dot_count = 3
-    #         dot_spacing = size / (dot_count + 1)
-            
-    #         if is_horizontal:
-    #             # Vertical bars
-    #             for i in range(1, dot_count + 1):
-    #                 dot_y = y + i * dot_spacing
-    #                 draw.ellipse([
-    #                     center_x - dot_radius, dot_y - dot_radius,
-    #                     center_x + dot_radius, dot_y + dot_radius
-    #                 ], fill=(0, 0, 0))
-    #         else:
-    #             # Horizontal bars
-    #             for i in range(1, dot_count + 1):
-    #                 dot_x = x + i * dot_spacing
-    #                 draw.ellipse([
-    #                     dot_x - dot_radius, center_y - dot_radius,
-    #                     dot_x + dot_radius, center_y + dot_radius
-    #                 ], fill=(0, 0, 0))
-        
-    #     elif door_type == 'secret':
-    #         # Cover with wall color
-    #         draw.rectangle([x, y, x+size, y+size], fill=(52, 73, 94))
-
-    # def draw_stairs(self, draw, x, y, size, stair_type, orientation):
-    #     """Draw stairs that look identical whether in grid or legend"""
-    #     step_count = 5
-    #     spacing = size / (step_count + 1)
-    #     max_length = size * 0.8
-        
-    #     if orientation == 'horizontal':
-    #         center_y = y + size // 2
-    #         for i in range(1, step_count + 1):
-    #             if stair_type == 'up':
-    #                 length = max_length
-    #             else:  # Down stairs
-    #                 length = max_length * (i / step_count)
-    #             x_pos = x + i * spacing
-    #             draw.line([
-    #                 x_pos, center_y - length//2,
-    #                 x_pos, center_y + length//2
-    #             ], fill=(0, 0, 0), width=1)
-    #     else:
-    #         center_x = x + size // 2
-    #         for i in range(1, step_count + 1):
-    #             if stair_type == 'up':
-    #                 length = max_length
-    #             else:  # Down stairs
-    #                 length = max_length * (i / step_count)
-    #             y_pos = y + i * spacing
-    #             draw.line([
-    #                 center_x - length//2, y_pos,
-    #                 center_x + length//2, y_pos
-    #             ], fill=(0, 0, 0), width=1)
-
-
-    def render_to_image(self):
-        from dungeon.renderer import DungeonRenderer
-        from dungeon.state import DungeonState
-        from dungeon.renderers.image_renderer import ImageRenderer
-        
-        state = DungeonState(self)
-        state.visibility.set_reveal_all(True)
-        renderer = ImageRenderer(state)
-        return renderer.render()
-
-    # def render_to_image(self):
-    #     """Render using state-based system for consistency"""
-    #     from dungeon.state import DungeonState
-    #     from dungeon.renderers.image_renderer import ImageRenderer
-        
-    #     state = DungeonState(self)
-    #     state.visibility.set_reveal_all(True)  # Show everything
-    #     renderer = ImageRenderer(state)
-    #     return renderer.render()
-
-    # def generate_legend_icons(self, icon_size=30):
-    #     """Generate icons with proper scaling to prevent clipping"""
-    #     grid_color = (200, 200, 200)
-    #     open_color = (255, 255, 255)
-    #     icons = {}
-        
-    #     # Create each icon using the same drawing methods but with scaling
-    #     def create_icon(element_type):
-    #         img = Image.new('RGB', (icon_size, icon_size), grid_color)
-    #         draw = ImageDraw.Draw(img)
-            
-    #         # Draw cell background with grid border
-    #         margin = 1 # 4
-    #         draw.rectangle([margin, margin, icon_size-margin-1, icon_size-margin-1], 
-    #                       fill=open_color, outline=grid_color)
-            
-    #         # Calculate scaled drawing area
-    #         scale_factor = 0.8  # Draw smaller to prevent clipping
-    #         scaled_size = int(icon_size * scale_factor)
-    #         x_offset = (icon_size - scaled_size) // 2
-    #         y_offset = (icon_size - scaled_size) // 2
-            
-    #         # Draw the element using the same unified methods
-    #         if element_type == 'room':
-    #             pass
-    #         elif element_type == 'corridor':
-    #             pass # don't want a line in the corridor
-    #             # draw.line([x_offset+4, icon_size//2, 
-    #             #            x_offset+scaled_size-4, icon_size//2], 
-    #             #          fill=(0,0,0), width=1)
-    #         elif element_type == 'arch':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'arch', 'horizontal')
-    #         elif element_type == 'open_door':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'open', 'horizontal')
-    #         elif element_type == 'locked_door':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'lock', 'horizontal')
-    #         elif element_type == 'trapped_door':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'trap', 'horizontal')
-    #         elif element_type == 'secret_door':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'secret', 'horizontal')
-    #         elif element_type == 'portcullis':
-    #             self.draw_door(draw, x_offset, y_offset, scaled_size, 'portc', 'horizontal')
-    #         elif element_type == 'stairs_up':
-    #             self.draw_stairs(draw, x_offset, y_offset, scaled_size, 'up', 'horizontal')
-    #         elif element_type == 'stairs_down':
-    #             self.draw_stairs(draw, x_offset, y_offset, scaled_size, 'down', 'horizontal')
-            
-    #         return img
-        
-    #     # Create all icons with consistent styling
-    #     elements = [
-    #         'room', 'corridor', 'arch', 'open_door', 'locked_door',
-    #         'trapped_door', 'secret_door', 'portcullis', 
-    #         'stairs_up', 'stairs_down'
-    #     ]
-        
-    #     for element in elements:
-    #         icons[element] = create_icon(element)
-        
-    #     return icons
-
-    def create_puzzle(self, location: Tuple[int, int], 
-                    description: str, 
-                    success_effect: str,
-                    hints: Optional[List[str]] = None) -> str:
-        """Create a new puzzle and register it with the state"""
-        puzzle_id = f"puzzle_{location[0]}_{location[1]}"
-        cell = self.dungeon_state.grid[location[0]][location[1]]
-        
-        # Store hints in cell metadata
-        hint_data = hints or []
-        cell.add_puzzle(puzzle_id, description, success_effect, hint_data)
-        return puzzle_id
-
-    def add_hint_to_puzzle(self, puzzle_id: str, hint: str, level: int = 0):
-        """Add a hint to an existing puzzle"""
-        for x in range(len(self.dungeon_state.grid)):
-            for y in range(len(self.dungeon_state.grid[0])):
-                cell = self.dungeon_state.grid[x][y]
-                for obj in cell.objects:
-                    if obj.get('type') == 'puzzle' and obj.get('puzzle_id') == puzzle_id:
-                        if 'hints' not in obj:
-                            obj['hints'] = []
-                        obj['hints'].append({"text": hint, "level": level})
-
-class EnhancedDungeonGenerator(DungeonGenerator):
-    def __init__(self, options=None):
-        DungeonGenerator.__init__(self, options)
-        self.theme = options.get("theme", "dungeon")
-        self.feature_density = options.get("feature_density", 0.1)
-        
-    def create_dungeon(self):
-        dungeon_data = DungeonGenerator.create_dungeon()
-        self.add_thematic_features()
-        self.add_random_puzzles()  
-        return dungeon_data
-
-    def add_random_puzzles(self):
-        """Add puzzles to various locations in the dungeon"""
-        puzzle_density = 0.05  # 5% of open spaces get puzzles
-        
-        for r in range(self.opts['n_rows'] + 1):
-            for c in range(self.opts['n_cols'] + 1):
-                if self.cell[r][c] & (self.ROOM | self.CORRIDOR):
-                    if random.random() < puzzle_density:
-                        puzzle_type = random.choice(["riddle", "lever", "symbol", "pressure plate"])
-                        puzzle_id = f"puzzle_{r}_{c}"
-                        puzzle_data = {
-                            "id": puzzle_id,
-                            "type": puzzle_type,
-                            "description": f"A {puzzle_type} puzzle",
-                            "difficulty": random.choice(["easy", "medium", "hard"])
-                        }
-                        # Add to dungeon state
-                        if hasattr(self, 'dungeon_state'):
-                            self.dungeon_state.add_puzzle((r, c), puzzle_data)
-        
-    def add_thematic_features(self):
-        """Add AI-selected features based on dungeon theme"""
-        theme_features = {
-            "cavern": ["water", "stalagmites", "fungus", "crystals"],
-            "ruins": ["rubble", "broken_column", "cracks", "ancient_inscription"],
-            "temple": ["altar", "holy_symbol", "offerings", "fresco"],
-            "labyrinth": ["hedges", "fountain", "statue", "maze_marker"]
-        }
-        
-        feature_pool = theme_features.get(self.theme, [])
-        if not feature_pool:
-            return
-            
-        for r in range(self.opts['n_rows'] + 1):
-            for c in range(self.opts['n_cols'] + 1):
-                if self.cell[r][c] & (self.ROOM | self.CORRIDOR):
-                    if random.random() < self.feature_density:
-                        feature_type = random.choice(feature_pool)
-                        feature_data = FEATURE_TEMPLATES.get(feature_type, {})
-                        # Add feature to dungeon state
-                        if hasattr(self, 'dungeon_state'):
-                            self.dungeon_state.add_feature((r, c), feature_type, feature_data)
-
-    def generate_room_description(self, room_id: int) -> str:
-        """Use AI to generate rich room description"""
-        room = next((r for r in self.room if r['id'] == room_id), None)
-        if not room:
-            return "A mysterious room"
-            
-        prompt = (
-            f"Describe a dungeon room in {self.theme} theme. "
-            f"Size: {room['width']}x{room['height']} feet. "
-            "Include sensory details and notable features."
-        )
-        # In practice, call your AI model here
-        return "A dimly lit chamber with damp stone walls echoing with distant drips"
-
-# Example usage
-if __name__ == "__main__":
-    options = {
-        'seed': 12345,
-        'n_rows': 39,
-        'n_cols': 39,
-        'room_min': 3,
-        'room_max': 9,
-        'corridor_layout': 'Bent',
-        'remove_deadends': 50,
-        'add_stairs': 2
-    }
-    
-    generator = DungeonGenerator(options)
-    generator.create_dungeon()
-    image = generator.render_to_image()
-    image.save('dungeon.png')

@@ -1,0 +1,41 @@
+Deleted previous test image: test_dungeon_neo.png
+Deleted previous test image: test_error_handling_neo.png
+Deleted previous test image: direct_dungeon_neo.png
+Running comprehensive Neo dungeon generator tests...
+
+Testing direct Neo generator...
+Creating standalone Neo generator...
+None
+Generating dungeon directly...
+Direct dungeon creation successful!
+Direct Neo dungeon image saved as direct_dungeon_neo.png
+12345
+Using seed: 12345
+Testing dungeon creation with Neo system...
+Dungeon dimensions: 39x39
+Number of rooms: 11
+Corridor count: 623
+Stairs placed: 2
+Neo dungeon image saved as test_dungeon_neo.png
+12345
+Using seed: 12345
+
+Testing Neo error handling...
+Rendering failed as expected: Expected exception not raised
+Error image saved as test_error_handling_neo.png
+12345
+Using seed: 12345
+
+Testing party movement in Neo system...
+Starting position: (3, 23)
+Movement failed: Invalid position
+Correctly blocked invalid move: Invalid position
+12345
+Using seed: 12345
+
+Testing visibility rendering...
+12345
+Using seed: 12345
+
+Testing Neo visibility system...
+Visibility tests passed

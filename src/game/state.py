@@ -120,10 +120,14 @@ class UnifiedGameState:
             'feature_density': params.get('feature_density', 0.1)
         })
 
-        generator.create_dungeon()
+        dungeon_data = generator.create_dungeon()
         self.dungeon_state = EnhancedDungeonState(generator)
         self.current_level = 1
         self.party_position = self.find_starting_position()
+
+        self.dungeon_state.grid = dungeon_data['grid']
+        self.dungeon_state.stairs = dungeon_data['stairs']
+        self.dungeon_state.rooms = dungeon_data['rooms']
         
     def find_starting_position(self) -> Tuple[int, int]:
         """Find stairs or suitable starting position in current dungeon"""
