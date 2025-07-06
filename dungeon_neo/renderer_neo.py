@@ -85,9 +85,6 @@ class DungeonRendererNeo:
         # Draw grid
         self._draw_grid(draw, width, height)
         
-        # Precompute stair positions for efficient lookup
-        stair_dict = {(stair['row'], stair['col']): stair for stair in state.stairs}
-        
         # Draw cells with visibility handling
         for y in range(state.height):
             # Validate row exists
@@ -124,7 +121,7 @@ class DungeonRendererNeo:
                         x * self.cell_size, 
                         y * self.cell_size, 
                         cell,
-                        stair_dict.get((y, x))
+                        state
                     )
                 elif is_explored:
                     self._draw_explored_cell(
@@ -136,7 +133,7 @@ class DungeonRendererNeo:
         
         return img
 
-    def _draw_visible_cell(self, draw, x, y, cell, stair=None):
+    def _draw_visible_cell(self, draw, x, y, cell, state):
         """Draw a fully visible cell with comprehensive null checks"""
         # Fail-safe: Return immediately if cell is invalid
         if cell is None or not hasattr(cell, 'base_type'):
@@ -156,30 +153,15 @@ class DungeonRendererNeo:
             # Draw doors if present
             if cell.is_door:
                 try:
-                    self._draw_door(draw, x, y, cell)
+                    self._draw_door(draw, x, y, cell, state)
                 except Exception as e:
                     print(f"Error drawing door at ({x},{y}): {str(e)}")
             
             # Draw stairs if present
-            if cell.is_stairs and stair is not None:
+            if cell.is_stairs:
                 try:
-                    # Use safe property access for stair type
                     stair_type = 'up' if cell.is_stair_up else 'down'
-                    
-                    # Safely get stair positions
-
-                    row = stair.get('row', 0)
-                    col = stair.get('col', 0)
-
-                    next_row = stair.get('next_row', row)
-                    next_col = stair.get('next_col', col)
-                    
-                    # Calculate direction safely
-                    dr = next_row - row
-                    dc = next_col - col
-
-                    orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-                    
+                    orientation = state.get_stair_orientation(cell.x, cell.y)
                     self._draw_stairs(draw, x, y, stair_type, orientation)
                 except Exception as e:
                     print(f"Error drawing stairs at ({x},{y}): {str(e)}")
@@ -254,8 +236,21 @@ class DungeonRendererNeo:
     def _draw_explored_cell(self, draw, x, y, cell):
         size = self.cell_size
         draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['explored'])
+
+    def has_open_space(self, r, c):
+        """Check if coordinates contain open space"""
+        if not hasattr(self, 'state') or not self.state:
+            return False
+        if r < 0 or r >= self.state.height or c < 0 or c >= self.state.width:
+            return False
+        cell = self.state.grid[r][c]
+        return cell and (cell.is_room or cell.is_corridor)
     
-    def _draw_door(self, draw, x, y, cell):
+    def _draw_door(self, draw, x, y, cell, state):
+        """Draw door using state for orientation lookup"""
+        # Get actual orientation from state
+        orientation = state.get_door_orientation(cell.x, cell.y)
+
         # Determine door type from cell properties
         if cell.is_arch: door_type = 'arch'
         elif cell.is_door_open: door_type = 'door'
@@ -265,7 +260,6 @@ class DungeonRendererNeo:
         elif cell.is_portc: door_type = 'portc'
         else: door_type = 'door'
 
-        orientation = self._get_door_orientation(cell)
         color = self.COLORS.get(door_type, self.COLORS['door'])
         
         is_horizontal = (orientation == 'horizontal')
@@ -395,11 +389,6 @@ class DungeonRendererNeo:
         elif cell_flags & self.PORTC:
             return 'portc'
         return 'door'
-    
-    def _get_door_orientation(self, cell):
-        # Simplified orientation based on typical door placement
-        # In practice, this would check adjacent cells
-        return 'vertical' #if cell.x % 2 == 0 else 'horizontal' # needs refactoring
 
     def generate_legend_icons(self, icon_size=30):
         """Generate consistent legend icons"""

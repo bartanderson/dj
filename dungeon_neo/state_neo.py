@@ -45,6 +45,17 @@ class DungeonStateNeo:
         # Determine starting position
         self._party_position = self._determine_start_position()
 
+        # Create orientation lookup dictionaries
+        self.door_orientations = {}
+        for door in self.doors:
+            pos = (door['row'], door['col'])
+            self.door_orientations[pos] = door['orientation']
+
+        self.stair_orientations = {}
+        for stair in self.stairs:
+            pos = (stair['row'], stair['col'])
+            self.stair_orientations[pos] = stair['orientation'] # stair.get('orientation', 'horizontal') # mimic door for this just in case, change back if it breaks I guess
+
     @property
     def width(self):
         return self._width
@@ -60,6 +71,12 @@ class DungeonStateNeo:
     @party_position.setter
     def party_position(self, value):
         self._party_position = value
+
+    def get_door_orientation(self, row, col):
+        return self.door_orientations.get((row, col), 'horizontal')
+
+    def get_stair_orientation(self, row, col):
+        return self.stair_orientations.get((row, col), 'horizontal')
 
         
     def _convert_grid(self, generator_grid, num_rows, num_cols):

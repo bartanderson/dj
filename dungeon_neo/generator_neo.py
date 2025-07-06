@@ -54,21 +54,6 @@ class DungeonGeneratorNeo:
     def __init__(self, options=None):
         #print(".....................................",options)
         self.opts = options
-        # {
-        #     'seed': 'None',
-        #     'n_rows': 39,
-        #     'n_cols': 39,
-        #     'dungeon_layout': 'None',
-        #     'room_min': 3,
-        #     'room_max': 9,
-        #     'room_layout': 'Scattered',
-        #     'corridor_layout': 'Bent',
-        #     'remove_deadends': 50,
-        #     'add_stairs': 2,
-        #     'map_style': 'Standard',
-        #     #'cell_size': 18, handled in renderer options
-        #     'grid': 'Square'
-        # }
         self.n_rows = options['n_rows']
         self.n_cols = options['n_cols']
         self.room = []
@@ -407,9 +392,14 @@ class DungeonGeneratorNeo:
                 c = sill['sill_c'] + self.dj[open_dir] * x
                 self.cell[r][c] &= ~self.PERIMETER
                 self.cell[r][c] |= self.ENTRANCE
+
+            # Calculate door orientation
+            is_horizontal = open_dir in ['east', 'west']
+            orientation = 'horizontal' if is_horizontal else 'vertical'
+
             
             door_type = self.door_type()
-            door = {'row': door_r, 'col': door_c}
+            door = {'row': door_r, 'col': door_c, 'orientation': orientation}
             
             if door_type == self.ARCH:
                 self.cell[door_r][door_c] |= self.ARCH
@@ -664,10 +654,17 @@ class DungeonGeneratorNeo:
                 for dir, config in self.stair_end.items():
                     if self.check_tunnel(self.cell, r, c, config):
                         next_pos = config['next']
+                        next_row = r + next_pos[0]
+                        next_col = c + next_pos[1]
+                        dx = next_row - r
+                        dy = next_col - c
+                        is_horizontal = abs(dy) > abs(dx)
+                        orientation = 'horizontal' if is_horizontal else 'vertical'
                         end = {
                             'row': r, 'col': c,
-                            'next_row': r + next_pos[0],
-                            'next_col': c + next_pos[1]
+                            'next_row': next_row,
+                            'next_col': next_col,
+                            'orientation': orientation
                         }
                         ends.append(end)
                         break
@@ -830,6 +827,10 @@ class DungeonGeneratorNeo:
         return 'open'
 
     def has_open_space(self, r, c):
-        if r < 0 or r > self.opts['n_rows'] or c < 0 or c > self.opts['n_cols']:
+        """Check if coordinates contain open space"""
+        if not hasattr(self, 'state') or not self.state:
             return False
-        return bool(self.cell[r][c] & (self.ROOM | self.CORRIDOR))
+        if r < 0 or r >= self.state.height or c < 0 or c >= self.state.width:
+            return False
+        cell = self.state.grid[r][c]
+        return cell and (cell.is_room or cell.is_corridor)

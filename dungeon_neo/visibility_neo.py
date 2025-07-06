@@ -135,10 +135,21 @@ class VisibilitySystemNeo:
     
     def _is_blocking(self, x, y):
         """Check if a cell blocks light (walls, closed doors, etc.)"""
-        # Implement based on your cell types - this is an example
         cell_value = self.grid[y][x]
-        # things that cause vision to be blocked, left constants for easy reference
-        return cell_value & self.BLOCKED or cell_value & (self.PERIMETER | self.DOOR | self.LOCKED | self.TRAPPED | self.SECRET | self.STAIR_DN | self.STAIR_UP)
+        
+        # Always blocking
+        if cell_value & (self.BLOCKED | self.PERIMETER):
+            return True
+        
+        # Door handling
+        if cell_value & self.DOORSPACE:
+            # Portcullis and Arch don't block vision
+            if cell_value & (self.ARCH | self.PORTC):
+                return False
+            # All other doors block vision
+            return True
+        
+        return False
 
     # NOTHING = CELL_FLAGS['NOTHING']
     # BLOCKED = CELL_FLAGS['BLOCKED']

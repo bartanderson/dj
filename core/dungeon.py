@@ -44,13 +44,6 @@ class DungeonSystem:
             'map_style': 'Standard',
             #'cell_size': 18, handled in renderer options
             'grid': 'Square'
-        #crap that was here, moved the better initial values back from generator_neo.py
-        # 'width': 39,  # have to be odd
-        # 'height': 39, # have to be odd
-        # 'room_min': 5,
-        # 'room_max': 15,
-        # 'max_rooms': 30,
-        # 'add_stairs': 2
         }
     
     def __init__(self, options=None):
@@ -97,8 +90,20 @@ class DungeonSystem:
     def _is_blocked(self, x, y):
         """Check if cell is blocked (wall or closed door)"""
         cell = self.state.get_cell(x, y)
-        # things that cause vision to be blocked, see visibility_neo.py
-        return cell_value & self.BLOCKED or cell_value & (self.PERIMETER | self.DOOR | self.LOCKED | self.TRAPPED | self.SECRET | self.STAIR_DN | self.STAIR_UP)
+        
+        # Always blocking
+        if cell.base_type & (self.BLOCKED | self.PERIMETER):
+            return True
+        
+        # Door handling
+        if cell.base_type & self.DOORSPACE:
+            # Portcullis isn't blocked
+            if cell.base_type & (self.ARCH | self.PORTC):
+                return False
+            # All other doors are blocked
+            return True
+        
+        return False
 
     def update_visibility(self):
         """Update visibility based on party position"""

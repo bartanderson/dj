@@ -82,6 +82,20 @@ class DungeonCellNeo:
         return False
 
     @property
+    def door_orientation(self):
+        """Get door orientation from state if available"""
+        if hasattr(self, '_state') and self._state:
+            return self._state.get_door_orientation(self.x, self.y)
+        return 'horizontal'
+
+    @property
+    def stair_orientation(self):
+        """Get stair orientation from state if available"""
+        if hasattr(self, '_state') and self._state:
+            return self._state.get_stair_orientation(self.x, self.y)
+        return 'horizontal'
+    
+    @property
     def is_room(self):
         return self._safe_property_check(self.ROOM)
     
