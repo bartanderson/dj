@@ -32,17 +32,17 @@ class DungeonRendererNeo:
 
     COLORS = {
         'room': (255, 255, 255),
-        'corridor': (220, 220, 220),
+        'corridor': (200, 200, 200),
         'wall': (50, 50, 50),
-        'door': (139, 69, 19),      # Brown
+        'door': (101, 67, 33),      # Darker brown
         'arch': (160, 120, 40),     # Light brown
-        'secret': (52, 73, 94),     # Dark blue-gray
+        'secret': (101, 67, 33),    # Darker brown
         'locked': (101, 67, 33),    # Darker brown
-        'trapped': (150, 10, 10),   # Blood red
-        'portc': (80, 80, 80),      # Dark gray
-        'stairs_up': (27, 174, 96), # Green
-        'stairs_down': (231, 76, 60), # Red
-        'grid': (200, 200, 200),
+        'trapped': (101, 67, 33),   # Darker brown
+        'portc': (10, 10, 10),      # Dark gray
+        'stairs_up': (10, 10, 10),
+        'stairs_down': (10, 10, 10),
+        'grid': (100, 100, 100),
         'background': (52, 73, 94),
         'explored': (100, 100, 100),
         'legend_bg': (45, 45, 45),
@@ -130,6 +130,9 @@ class DungeonRendererNeo:
                         y * self.cell_size, 
                         cell
                     )
+
+        # Draw grid on top of cells
+        self._draw_grid(draw, width, height)
         
         return img
 
@@ -149,6 +152,8 @@ class DungeonRendererNeo:
                 draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['corridor'])
             elif cell.is_blocked:
                 draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['wall'])
+            elif cell.is_door:
+                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['corridor'])
             
             # Draw doors if present
             if cell.is_door:
@@ -269,7 +274,7 @@ class DungeonRendererNeo:
         arch_height = self.cell_size // 6
         
         # Draw door slab
-        if door_type != 'secret':
+        if door_type not in ['arch', 'portc']: # allow secret door to be rendered like regular door we will cover with Fog of War
             if is_horizontal:
                 draw.rectangle([
                     center_x - door_width//2, y + arch_height,
@@ -281,30 +286,29 @@ class DungeonRendererNeo:
                     x + self.cell_size - arch_height, center_y + door_width//2
                 ], fill=color)
         
-        # Draw arch for all doors except secrets
-        if door_type != 'secret':
-            if is_horizontal:
-                # Top arch
-                draw.rectangle([
-                    center_x - door_width//2, y,
-                    center_x + door_width//2, y + arch_height
-                ], fill=self.COLORS['arch'])
-                # Bottom arch
-                draw.rectangle([
-                    center_x - door_width//2, y + self.cell_size - arch_height,
-                    center_x + door_width//2, y + self.cell_size
-                ], fill=self.COLORS['arch'])
-            else:
-                # Left arch
-                draw.rectangle([
-                    x, center_y - door_width//2,
-                    x + arch_height, center_y + door_width//2
-                ], fill=self.COLORS['arch'])
-                # Right arch
-                draw.rectangle([
-                    x + self.cell_size - arch_height, center_y - door_width//2,
-                    x + self.cell_size, center_y + door_width//2
-                ], fill=self.COLORS['arch'])
+        # Draw arch for all doors even secrets
+        if is_horizontal:
+            # Top arch
+            draw.rectangle([
+                center_x - door_width//2, y,
+                center_x + door_width//2, y + arch_height
+            ], fill=self.COLORS['arch'])
+            # Bottom arch
+            draw.rectangle([
+                center_x - door_width//2, y + self.cell_size - arch_height,
+                center_x + door_width//2, y + self.cell_size
+            ], fill=self.COLORS['arch'])
+        else:
+            # Left arch
+            draw.rectangle([
+                x, center_y - door_width//2,
+                x + arch_height, center_y + door_width//2
+            ], fill=self.COLORS['arch'])
+            # Right arch
+            draw.rectangle([
+                x + self.cell_size - arch_height, center_y - door_width//2,
+                x + self.cell_size, center_y + door_width//2
+            ], fill=self.COLORS['arch'])
         
         # Add special symbols
         if door_type == 'locked':
@@ -319,32 +323,46 @@ class DungeonRendererNeo:
             draw.polygon(diamond, fill=(100, 100, 100))
         
         elif door_type == 'portc':
-            # Portcullis bars
-            bar_thickness = max(2, self.cell_size // 12)
-            bar_count = 3
+            # Portcullis vertical bars represented as circles
+            bar_count = 5  # Number of vertical bars
+            bar_radius = max(.5, self.cell_size // 20)
             bar_spacing = self.cell_size / (bar_count + 1)
-            
+
             if is_horizontal:
+                # Horizontal portcullis - bars vertical
+                bar_x = x + self.cell_size // 2  # Center horizontally
                 for i in range(1, bar_count + 1):
                     bar_y = y + i * bar_spacing
-                    draw.rectangle([
-                        center_x - door_width//2, bar_y - bar_thickness//2,
-                        center_x + door_width//2, bar_y + bar_thickness//2
-                    ], fill=(40, 40, 40))
+                    # Draw circle for each bar
+                    bbox = [
+                        bar_x - bar_radius,
+                        bar_y - bar_radius,
+                        bar_x + bar_radius,
+                        bar_y + bar_radius
+                    ]
+                    draw.ellipse(bbox, fill=color)
             else:
+                # Vertical portcullis - bars horizontal
+                bar_y = y + self.cell_size // 2  # Center vertically
                 for i in range(1, bar_count + 1):
                     bar_x = x + i * bar_spacing
-                    draw.rectangle([
-                        bar_x - bar_thickness//2, center_y - door_width//2,
-                        bar_x + bar_thickness//2, center_y + door_width//2
-                    ], fill=(40, 40, 40))
-        
+                    # Draw circle for each bar
+                    bbox = [
+                        bar_x - bar_radius,
+                        bar_y - bar_radius,
+                        bar_x + bar_radius,
+                        bar_y + bar_radius
+                    ]
+                    draw.ellipse(bbox, fill=color)
+
         elif door_type == 'secret':
-            # Add subtle indicator
-            draw.line([
-                (x + self.cell_size//4, y + self.cell_size//2),
-                (x + 3*self.cell_size//4, y + self.cell_size//2)
-            ], fill=(150, 150, 200), width=2)
+            # no indication at all but you can turn on for debug
+            show_secret = False
+            if show_secret:
+                draw.line([
+                    (x + self.cell_size//4, y + self.cell_size//2),
+                    (x + 3*self.cell_size//4, y + self.cell_size//2)
+                ], fill=(200, 10, 20), width=2)
     
     def _draw_stairs(self, draw, x, y, stair_type, orientation):
         """Draw stair visualization with proper parameters"""
@@ -482,7 +500,8 @@ class DungeonRendererNeo:
                 draw.rectangle([
                     x + arch_height, center_y - door_width//2,
                     x + size - arch_height, center_y + door_width//2
-                ], fill=color)
+                ], fill=self.COLORS['wall'])
+
         
         # Draw arch for all doors except secrets
         if door_type != 'secret':
@@ -544,10 +563,11 @@ class DungeonRendererNeo:
         
         elif door_type == 'secret':
             # Add subtle indicator
-            draw.line([
-                (x + size//4, y + size//2),
-                (x + 3*size//4, y + size//2)
-            ], fill=(150, 150, 200), width=2)
+            pass
+            # draw.line([
+            #     (x + size//4, y + size//2),
+            #     (x + 3*size//4, y + size//2)
+            # ], fill=(150, 150, 200), width=2)
 
     def _draw_stair_icon(self, draw, x, y, size, stair_type, orientation):
         """Draw stair icon for legend"""
