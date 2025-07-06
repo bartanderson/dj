@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dungeon Explorer</title>
+    <style>
+        .controls { margin: 20px; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Dungeon Explorer</h1>
+    <div class="controls">
+        <button onclick="move('north')">North</button>
+        <button onclick="move('south')">South</button>
+        <button onclick="move('east')">East</button>
+        <button onclick="move('west')">West</button>
+    </div>
+    <div id="room-description"></div>
+    <img id="dungeon-map" src="/api/dungeon-image" alt="Dungeon Map">
+
+    <script>
+        async function move(direction) {
+            const response = await fetch(`/api/move/${direction}`, {method: 'POST'});
+            const data = await response.json();
+            document.getElementById('room-description').textContent = data.room;
+            refreshMap();
+        }
+        
+        function refreshMap() {
+            const img = document.getElementById('dungeon-map');
+            img.src = `/api/dungeon-image?t=${new Date().getTime()}`;
+        }
+        
+        // Refresh map every 30 seconds
+        setInterval(refreshMap, 30000);
+    </script>
+</body>
+</html>

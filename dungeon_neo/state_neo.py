@@ -6,40 +6,44 @@ from dungeon_neo.generator_neo import DungeonGeneratorNeo
 
 class DungeonStateNeo:
 
-    # NOTHING = CELL_FLAGS['NOTHING']
-    # BLOCKED = CELL_FLAGS['BLOCKED']
+    NOTHING = CELL_FLAGS['NOTHING']
+    BLOCKED = CELL_FLAGS['BLOCKED']
     ROOM = CELL_FLAGS['ROOM']
     CORRIDOR = CELL_FLAGS['CORRIDOR']
-    # PERIMETER = CELL_FLAGS['PERIMETER']
-    # ENTRANCE = CELL_FLAGS['ENTRANCE']
-    # ROOM_ID = CELL_FLAGS['ROOM_ID']
-    # ARCH = CELL_FLAGS['ARCH']
-    # DOOR = CELL_FLAGS['DOOR']
-    # LOCKED = CELL_FLAGS['LOCKED']
-    # TRAPPED = CELL_FLAGS['TRAPPED']
-    # SECRET = CELL_FLAGS['SECRET']
-    # PORTC = CELL_FLAGS['PORTC']
-    # STAIR_DN = CELL_FLAGS['STAIR_DN']
-    # STAIR_UP = CELL_FLAGS['STAIR_UP']
-    # LABEL = CELL_FLAGS['LABEL']
+    PERIMETER = CELL_FLAGS['PERIMETER']
+    ENTRANCE = CELL_FLAGS['ENTRANCE']
+    ROOM_ID = CELL_FLAGS['ROOM_ID']
+    ARCH = CELL_FLAGS['ARCH']
+    DOOR = CELL_FLAGS['DOOR']
+    LOCKED = CELL_FLAGS['LOCKED']
+    TRAPPED = CELL_FLAGS['TRAPPED']
+    SECRET = CELL_FLAGS['SECRET']
+    PORTC = CELL_FLAGS['PORTC']
+    STAIR_DN = CELL_FLAGS['STAIR_DN']
+    STAIR_UP = CELL_FLAGS['STAIR_UP']
+    LABEL = CELL_FLAGS['LABEL']
 
-    def __init__(self, generator: DungeonGeneratorNeo):
-        self.generator = generator
-        dungeon_data = generator.create_dungeon()
-        self.grid = self._convert_grid(dungeon_data['grid'])
-        self.rooms = dungeon_data['rooms']
-        self.doors = dungeon_data['doors']
-        self.stairs = dungeon_data['stairs']
+    def __init__(self, generator_result):
+        self.n_cols = generator_result['n_cols']
+        self.n_rows = generator_result['n_rows']
+        # Convert grid with strict dimension enforcement
+        self.grid = self._convert_grid(
+            generator_result['grid'], 
+            self.n_rows, 
+            self.n_cols
+        )
+
+        self.stairs = generator_result['stairs']
+        self.doors = generator_result.get('doors', [])
+        self.rooms = generator_result.get('rooms', [])
+
         
         # Set dimensions based on actual grid size
         self._height = len(self.grid)
-        self._width = len(self.grid[0]) if self._height > 0 else 0
+        self._width = len(self.grid[0]) if self.grid else 0
         
         # Determine starting position
         self._party_position = self._determine_start_position()
-        
-        # Initialize visibility system
-        self.visibility = VisibilitySystemNeo(self.grid, self._party_position)
 
     @property
     def width(self):
@@ -56,25 +60,41 @@ class DungeonStateNeo:
     @party_position.setter
     def party_position(self, value):
         self._party_position = value
-        # Automatically update visibility when position changes
-        if hasattr(self, 'visibility'):
-            self.visibility.party_position = value
-            self.visibility.update_visibility()
+
         
-    def _convert_grid(self, generator_grid):
+    def _convert_grid(self, generator_grid, num_rows, num_cols):
+        """Convert grid to DungeonCellNeo objects with comprehensive validation"""
         grid = []
-        for x, row in enumerate(generator_grid):
-            new_row = []
-            for y, cell_value in enumerate(row):
-                new_row.append(DungeonCellNeo(cell_value, x, y))
-            grid.append(new_row)
+        for x in range(num_rows + 1):
+            row = []
+            for y in range(num_cols + 1):
+                # Get value with fallback
+                try:
+                    value = generator_grid[x][y]
+                except (IndexError, TypeError):
+                    value = CELL_FLAGS['NOTHING']
+                
+                # Create cell with validated value
+                cell = DungeonCellNeo(value, x, y)
+                
+                # Log conversion if needed
+                if not isinstance(value, int):
+                    print(f"Converted cell ({x},{y}) from {type(value)} to int: {cell.base_type}")
+                
+                row.append(cell)
+            grid.append(row)
         return grid
-        
+
     def _determine_start_position(self):
-        # Find starting position (stairs or center)
+        # Find starting position (stairs or first room or center)
         if self.stairs:
             stair = self.stairs[0]
             return (stair['row'], stair['col'])  # Use row/col instead of position
+        # Fallback to first room center
+        if self.rooms:
+            first_room = self.rooms[0]
+            return first_room['center_x'], first_room['center_y']
+        # Fallback to center of grid
         return (self.height // 2, self.width // 2)
 
     def get_valid_moves(self, position=None):

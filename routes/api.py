@@ -1,47 +1,38 @@
-from flask import Blueprint, jsonify, current_app, request, send_file
+from flask import Blueprint, jsonify, current_app, send_file, request
 import io
-from dungeon.renderers.image_renderer import ImageRenderer
-from dungeon.renderers.web_renderer import WebRenderer
 
 api_bp = Blueprint('api', __name__)
 
 @api_bp.route('/status')
 def status_check():
-    return jsonify({
-        'status': 'online',
-        'version': '0.1.0',
-        'routes': ['/']
-    })
+    return jsonify({"status": "active"})
 
 @api_bp.route('/move/<direction>', methods=['POST'])
 def move_party(direction):
-    game_state = current_app.game_state
-    new_pos = game_state.move_party(direction)
-    game_state.dungeon_state.visibility.update_visibility()
-    
+    current_app.game_state.move(direction)
     return jsonify({
-        'success': new_pos != game_state.party_position,
-        'position': new_pos,
-        'visible_cells': game_state.dungeon_state.visibility.get_visible_cells()
+        "message": f"Moved {direction}",
+        "room": current_app.game_state.get_current_room()
     })
 
-@api_bp.route('/dungeon-image')
+@api_bp.route('/dungeon-image')  # Make sure this route is defined
 def get_dungeon_image():
-    game_state = current_app.game_state
-    renderer = ImageRenderer(game_state.dungeon_state)
-    img = renderer.render()
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='PNG')
-    img_byte_arr.seek(0)
-    return send_file(img_byte_arr, mimetype='image/png')
+    debug = request.args.get('debug', 'false').lower() == 'true'
+    img = current_app.game_state.get_dungeon_image(debug)
+    
+    # Convert image to bytes
+    img_io = io.BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/png')
 
-@api_bp.route('/dungeon-data')
-def get_dungeon_data():
-    game_state = current_app.game_state
-    renderer = WebRenderer(game_state.dungeon_state)
-    return jsonify(renderer.render())
+# Add reset endpoint
+@api_bp.route('/reset', methods=['POST'])
+def reset_dungeon():
+    current_app.game_state.dungeon.generate()
+    return jsonify({"success": True, "message": "Dungeon reset"})
 
-@api_bp.route('/dev/reveal-all', methods=['POST'])
+@api_bp.route('/debug-toggle', methods=['POST'])
 def dev_reveal_all():
     try:
         game_state = current_app.game_state
@@ -50,21 +41,11 @@ def dev_reveal_all():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/dev/reset-view', methods=['POST'])
+@api_bp.route('/reset', methods=['POST'])
 def dev_reset_view():
     try:
         game_state = current_app.game_state
         game_state.dungeon_state.visibility.set_reveal_all(False)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@api_bp.route('/dev/normal-view', methods=['POST'])
-def normal_view():
-    try:
-        game_state = current_app.game_state
-        game_state.dungeon_state.visibility.set_reveal_all(False)
-        game_state.dungeon_state.visibility.update_visibility()
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -1,8 +1,35 @@
 from PIL import Image, ImageDraw, ImageFont
 from dungeon_neo.state_neo import DungeonStateNeo
 from dungeon_neo.generator_neo import DungeonGeneratorNeo
+from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
+from dungeon_neo.cell_neo import DungeonCellNeo
 
 class DungeonRendererNeo:
+    NOTHING = CELL_FLAGS['NOTHING']
+    BLOCKED = CELL_FLAGS['BLOCKED']
+    ROOM = CELL_FLAGS['ROOM']
+    CORRIDOR = CELL_FLAGS['CORRIDOR']
+    PERIMETER = CELL_FLAGS['PERIMETER']
+    ENTRANCE = CELL_FLAGS['ENTRANCE']
+    ROOM_ID = CELL_FLAGS['ROOM_ID']
+    ARCH = CELL_FLAGS['ARCH']
+    DOOR = CELL_FLAGS['DOOR']
+    LOCKED = CELL_FLAGS['LOCKED']
+    TRAPPED = CELL_FLAGS['TRAPPED']
+    SECRET = CELL_FLAGS['SECRET']
+    PORTC = CELL_FLAGS['PORTC']
+    STAIR_DN = CELL_FLAGS['STAIR_DN']
+    STAIR_UP = CELL_FLAGS['STAIR_UP']
+    LABEL = CELL_FLAGS['LABEL']
+
+    # Composite flags
+    DOORSPACE = CELL_FLAGS['DOORSPACE']
+    ESPACE = CELL_FLAGS['ESPACE']
+    STAIRS = CELL_FLAGS['STAIRS']
+    BLOCK_ROOM = CELL_FLAGS['BLOCK_ROOM']
+    BLOCK_CORR = CELL_FLAGS['BLOCK_CORR']
+    BLOCK_DOOR = CELL_FLAGS['BLOCK_DOOR']
+
     COLORS = {
         'room': (255, 255, 255),
         'corridor': (220, 220, 220),
@@ -41,7 +68,7 @@ class DungeonRendererNeo:
     def __init__(self, cell_size=18):
         self.cell_size = cell_size
         
-    def render(self, state: DungeonStateNeo, debug_show_all=False, include_legend=False):
+    def render(self, state: DungeonStateNeo, debug_show_all=False, include_legend=True, visibility_system=None):
         dungeon_img = self._render_dungeon(state, debug_show_all)
         
         if include_legend:
@@ -49,7 +76,7 @@ class DungeonRendererNeo:
             return self.create_composite_image(dungeon_img, icons)
         return dungeon_img
 
-    def _render_dungeon(self, state: DungeonStateNeo, debug_show_all=False):
+    def _render_dungeon(self, state: DungeonStateNeo, debug_show_all=False, visibility_system=None):
         width = state.width * self.cell_size
         height = state.height * self.cell_size
         img = Image.new('RGB', (width, height), self.COLORS['background'])
@@ -61,20 +88,122 @@ class DungeonRendererNeo:
         # Precompute stair positions for efficient lookup
         stair_dict = {(stair['row'], stair['col']): stair for stair in state.stairs}
         
-        # Draw cells
-        for x in range(state.height):
-            for y in range(state.width):
-                cell = state.grid[x][y]
-                visibility = state.visibility.get_visibility((x, y))
+        # Draw cells with visibility handling
+        for y in range(state.height):
+            # Validate row exists
+            if y >= len(state.grid):
+                continue
                 
-                if debug_show_all or visibility['explored']:
-                    self._draw_cell(
-                        draw, x, y, cell, 
-                        visibility['visible'] or debug_show_all,
-                        stair_dict
+            row = state.grid[y]
+            for x in range(state.width):
+                # Validate column exists
+                if x >= len(row):
+                    continue
+                    
+                cell = row[x]
+                
+                # Safer validation without type check
+                if cell is None or not hasattr(cell, 'base_type'):
+                    # Create fallback cell
+                    from dungeon_neo.cell_neo import DungeonCellNeo
+                    from dungeon_neo.constants import CELL_FLAGS
+                    cell = DungeonCellNeo(CELL_FLAGS['NOTHING'], x, y)
+                
+                # Determine visibility
+                vis_status = "unexplored"
+                if visibility_system:
+                    vis_status = visibility_system.get_visibility((x, y))
+                
+                is_visible = debug_show_all or (vis_status == "visible")
+                is_explored = debug_show_all or (vis_status in ("visible", "explored"))
+                
+                # Draw cell based on visibility status
+                if is_visible:
+                    self._draw_visible_cell(
+                        draw, 
+                        x * self.cell_size, 
+                        y * self.cell_size, 
+                        cell,
+                        stair_dict.get((y, x))
                     )
+                elif is_explored:
+                    self._draw_explored_cell(
+                        draw, 
+                        x * self.cell_size, 
+                        y * self.cell_size, 
+                        cell
+                    )
+        
         return img
-    
+
+    def _draw_visible_cell(self, draw, x, y, cell, stair=None):
+        """Draw a fully visible cell with comprehensive null checks"""
+        # Fail-safe: Return immediately if cell is invalid
+        if cell is None or not hasattr(cell, 'base_type'):
+            return
+        
+        size = self.cell_size
+        
+        try:
+            # Draw base cell using safe property access
+            if cell.is_room:
+                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['room'])
+            elif cell.is_corridor:
+                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['corridor'])
+            elif cell.is_blocked:
+                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['wall'])
+            
+            # Draw doors if present
+            if cell.is_door:
+                try:
+                    self._draw_door(draw, x, y, cell)
+                except Exception as e:
+                    print(f"Error drawing door at ({x},{y}): {str(e)}")
+            
+            # Draw stairs if present
+            if cell.is_stairs and stair is not None:
+                try:
+                    # Use safe property access for stair type
+                    stair_type = 'up' if cell.is_stair_up else 'down'
+                    
+                    # Safely get stair positions
+
+                    row = stair.get('row', 0)
+                    col = stair.get('col', 0)
+
+                    next_row = stair.get('next_row', row)
+                    next_col = stair.get('next_col', col)
+                    
+                    # Calculate direction safely
+                    dr = next_row - row
+                    dc = next_col - col
+
+                    orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
+                    
+                    self._draw_stairs(draw, x, y, stair_type, orientation)
+                except Exception as e:
+                    print(f"Error drawing stairs at ({x},{y}): {str(e)}")
+            
+            # Draw labels if present
+            if cell.has_label:
+                try:
+                    self._draw_label(draw, x, y, cell)
+                except Exception as e:
+                    print(f"Error drawing label at ({x},{y}): {str(e)}")
+        except Exception as e:
+            print(f"Critical error drawing cell at ({x},{y}): {str(e)}")
+
+    def _draw_label(self, draw, x, y, cell):
+        """Draw room label"""
+        size = self.cell_size
+        char_code = (cell.base_type & self.LABEL) >> 24
+        if char_code:
+            char = chr(char_code)
+            font = ImageFont.load_default()
+            text_x = x + (size - font.getlength(char)) // 2
+            text_y = y + (size - 10) // 2
+            draw.text((text_x, text_y), char, fill=(0, 0, 0), font=font)
+            
     def _draw_grid(self, draw, width, height):
         # Horizontal lines
         for y in range(0, height, self.cell_size):
@@ -91,16 +220,16 @@ class DungeonRendererNeo:
             self._draw_explored_cell(draw, x_pixel, y_pixel, cell)
             return
             
-        if cell.base_type & DungeonGeneratorNeo.BLOCKED:
+        if cell.base_type & self.BLOCKED:
             self._draw_wall(draw, x_pixel, y_pixel)
-        elif cell.base_type & DungeonGeneratorNeo.ROOM:
+        elif cell.base_type & self.ROOM:
             self._draw_room(draw, x_pixel, y_pixel)
-        elif cell.base_type & DungeonGeneratorNeo.CORRIDOR:
+        elif cell.base_type & self.CORRIDOR:
             self._draw_corridor(draw, x_pixel, y_pixel)
             
-        if cell.base_type & DungeonGeneratorNeo.DOORSPACE:
+        if cell.base_type & self.DOORSPACE:
             self._draw_door(draw, x_pixel, y_pixel, cell)
-        if cell.base_type & DungeonGeneratorNeo.STAIRS:
+        if cell.base_type & self.STAIRS:
             stair = stair_dict.get((x, y))
             self._draw_stairs(draw, x_pixel, y_pixel, cell, stair)
     
@@ -123,14 +252,19 @@ class DungeonRendererNeo:
         ], fill=self.COLORS['corridor'])
     
     def _draw_explored_cell(self, draw, x, y, cell):
-        draw.rectangle([
-            x, y, 
-            x + self.cell_size, y + self.cell_size
-        ], fill=self.COLORS['explored'])
+        size = self.cell_size
+        draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['explored'])
     
     def _draw_door(self, draw, x, y, cell):
-        # Get door type
-        door_type = self._get_door_type(cell.base_type)
+        # Determine door type from cell properties
+        if cell.is_arch: door_type = 'arch'
+        elif cell.is_door_open: door_type = 'door'
+        elif cell.is_locked: door_type = 'locked'
+        elif cell.is_trapped: door_type = 'trapped'
+        elif cell.is_secret: door_type = 'secret'
+        elif cell.is_portc: door_type = 'portc'
+        else: door_type = 'door'
+
         orientation = self._get_door_orientation(cell)
         color = self.COLORS.get(door_type, self.COLORS['door'])
         
@@ -218,22 +352,14 @@ class DungeonRendererNeo:
                 (x + 3*self.cell_size//4, y + self.cell_size//2)
             ], fill=(150, 150, 200), width=2)
     
-    def _draw_stairs(self, draw, x, y, cell, stair):
-        stair_type = 'up' if cell.base_type & DungeonGeneratorNeo.STAIR_UP else 'down'
+    def _draw_stairs(self, draw, x, y, stair_type, orientation):
+        """Draw stair visualization with proper parameters"""
         color = self.COLORS['stairs_up'] if stair_type == 'up' else self.COLORS['stairs_down']
         
         step_count = 5
         spacing = self.cell_size / (step_count + 1)
         max_length = self.cell_size * 0.7
-        step_color = (80, 80, 80)
-        
-        # Determine orientation based on next cell position
-        if stair and 'next_row' in stair and 'next_col' in stair:
-            dr = stair['next_row'] - stair['row']
-            dc = stair['next_col'] - stair['col']
-            orientation = 'horizontal' if abs(dc) > abs(dr) else 'vertical'
-        else:
-            orientation = 'horizontal'
+        step_color = (80, 80, 80)  # Dark gray for steps
         
         if orientation == 'horizontal':
             center_y = y + self.cell_size // 2
@@ -254,46 +380,26 @@ class DungeonRendererNeo:
                     center_x - length//2, y_pos,
                     center_x + length//2, y_pos
                 ], fill=step_color, width=2)
-                
-        # Add directional indicator for down stairs
-        if stair_type == 'down':
-            arrow_size = self.cell_size // 8
-            center_x = x + self.cell_size // 2
-            center_y = y + self.cell_size // 2
-            
-            if orientation == 'horizontal':
-                points = [
-                    (x + self.cell_size - arrow_size, center_y),
-                    (x + self.cell_size - arrow_size*2, center_y - arrow_size),
-                    (x + self.cell_size - arrow_size*2, center_y + arrow_size)
-                ]
-            else:
-                points = [
-                    (center_x, y + self.cell_size - arrow_size),
-                    (center_x - arrow_size, y + self.cell_size - arrow_size*2),
-                    (center_x + arrow_size, y + self.cell_size - arrow_size*2)
-                ]
-            draw.polygon(points, fill=(200, 0, 0))
     
-    def _get_door_type(self, base_type):
-        if base_type & DungeonGeneratorNeo.ARCH:
+    def _get_door_type(self, cell_flags):
+        if cell_flags & self.ARCH:
             return 'arch'
-        elif base_type & DungeonGeneratorNeo.DOOR:
+        elif cell_flags & self.DOOR:
             return 'door'
-        elif base_type & DungeonGeneratorNeo.LOCKED:
+        elif cell_flags & self.LOCKED:
             return 'locked'
-        elif base_type & DungeonGeneratorNeo.TRAPPED:
+        elif cell_flags & self.TRAPPED:
             return 'trapped'
-        elif base_type & DungeonGeneratorNeo.SECRET:
+        elif cell_flags & self.SECRET:
             return 'secret'
-        elif base_type & DungeonGeneratorNeo.PORTC:
+        elif cell_flags & self.PORTC:
             return 'portc'
         return 'door'
     
     def _get_door_orientation(self, cell):
         # Simplified orientation based on typical door placement
         # In practice, this would check adjacent cells
-        return 'vertical' if cell.x % 2 == 0 else 'horizontal'
+        return 'vertical' #if cell.x % 2 == 0 else 'horizontal' # needs refactoring
 
     def generate_legend_icons(self, icon_size=30):
         """Generate consistent legend icons"""
@@ -480,26 +586,6 @@ class DungeonRendererNeo:
                     center_x - length//2, y_pos,
                     center_x + length//2, y_pos
                 ], fill=step_color, width=2)
-                
-        # Add directional indicator for down stairs
-        if stair_type == 'down':
-            arrow_size = size // 8
-            center_x = x + size // 2
-            center_y = y + size // 2
-            
-            if orientation == 'horizontal':
-                points = [
-                    (x + size - arrow_size, center_y),
-                    (x + size - arrow_size*2, center_y - arrow_size),
-                    (x + size - arrow_size*2, center_y + arrow_size)
-                ]
-            else:
-                points = [
-                    (center_x, y + size - arrow_size),
-                    (center_x - arrow_size, y + size - arrow_size*2),
-                    (center_x + arrow_size, y + size - arrow_size*2)
-                ]
-            draw.polygon(points, fill=(200, 0, 0))
 
     def _draw_room(self, draw, x, y, size=None):
         """Draw room icon, works for both grid and legend"""

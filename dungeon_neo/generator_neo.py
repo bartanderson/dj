@@ -52,22 +52,29 @@ class DungeonGeneratorNeo:
 
 
     def __init__(self, options=None):
-        self.opts = {
-            'seed': 'None',
-            'n_rows': 39,
-            'n_cols': 39,
-            'dungeon_layout': 'None',
-            'room_min': 3,
-            'room_max': 9,
-            'room_layout': 'Scattered',
-            'corridor_layout': 'Bent',
-            'remove_deadends': 50,
-            'add_stairs': 2,
-            'map_style': 'Standard',
-            #'cell_size': 18, handled in renderer options
-            'grid': 'Square'
-        }
-        
+        #print(".....................................",options)
+        self.opts = options
+        # {
+        #     'seed': 'None',
+        #     'n_rows': 39,
+        #     'n_cols': 39,
+        #     'dungeon_layout': 'None',
+        #     'room_min': 3,
+        #     'room_max': 9,
+        #     'room_layout': 'Scattered',
+        #     'corridor_layout': 'Bent',
+        #     'remove_deadends': 50,
+        #     'add_stairs': 2,
+        #     'map_style': 'Standard',
+        #     #'cell_size': 18, handled in renderer options
+        #     'grid': 'Square'
+        # }
+        self.n_rows = options['n_rows']
+        self.n_cols = options['n_cols']
+        self.room = []
+        self.doorList = []      
+        self.stairList = []
+
         if options:
             self.opts.update(options)
 
@@ -177,6 +184,13 @@ class DungeonGeneratorNeo:
             self.emplace_stairs()
                 
         self.clean_dungeon()
+        # Before returning, ensure all grid values are integers
+        for x in range(len(self.cell)):
+            for y in range(len(self.cell[x])):
+                if not isinstance(self.cell[x][y], int):
+                    print(f"Non-int value at ({x},{y}): {self.cell[x][y]} - converting to NOTHING")
+                    self.cell[x][y] = self.NOTHING
+        
         return {
             'grid': self.cell,
             'stairs': self.stairList,
@@ -201,10 +215,19 @@ class DungeonGeneratorNeo:
         self.room_radix = (max_size - min_size) // 2 + 1
 
     def init_cells(self):
-        self.cell = [
-            [self.NOTHING] * (self.opts['n_cols'] + 1)
-            for _ in range(self.opts['n_rows'] + 1)
-        ]
+        # Ensure proper dimensions
+        rows = self.opts['n_rows'] + 1
+        cols = self.opts['n_cols'] + 1
+        
+        try:
+            # Initialize with NOTHING flag
+            self.cell = [
+                [self.NOTHING for _ in range(cols)]
+                for _ in range(rows)
+            ]
+        except Exception as e:
+            # Fallback to safe initialization
+            self.cell = [[self.NOTHING] * cols for _ in range(rows)]
         
         layout = self.dungeon_layout.get(self.opts['dungeon_layout'])
         if layout:
@@ -580,6 +603,9 @@ class DungeonGeneratorNeo:
         return True
 
     def emplace_stairs(self):
+        # Reset stairList at start
+        self.stairList = []
+
         n = self.opts['add_stairs']
         if not n:
             return
@@ -587,7 +613,7 @@ class DungeonGeneratorNeo:
         ends = self.stair_ends()
         if not ends:
             return
-        
+
         # Create exactly one up and one down stair when n=2
         if n == 2:
             # First stair: down
@@ -622,7 +648,7 @@ class DungeonGeneratorNeo:
                     self.cell[r][c] |= self.STAIR_UP
                     end['key'] = 'up'
                 
-                self.stairs.append(end)
+                self.stairList.append(end)
 
     def stair_ends(self):
         ends = []
