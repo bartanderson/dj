@@ -2,6 +2,13 @@ Comprehensive Development Roadmap
 Phase 1: Core Architecture Refactoring (Current Priority)
 Modular Dungeon Generation
 
+
+May have to work up to the next part because I simplified things to get them to the point the DeepSeek could help me fix them.
+[x]Now I have movement of party and blocking by walls kind of working
+[]Need to fix orientation of some doors
+[]Get Fog Of War implemented, right now its all clear so the dungeon shows through.Need to add it back with line of sight blocking and see if it works.
+** Note Walls are not a cell thing, they are a construct in my mind and they are drawn.. may be an issue to deal with later. It surprised me. We block on NOTHING for now.
+
 Split DungeonGenerator into:
 
 LayoutGenerator (room/corridor algorithms)
@@ -12,26 +19,11 @@ DungeonBuilder (orchestration facade)
 
 Preserve AI integration points (puzzle creation, content generation)
 
-State Management Unification
+[x]State Management Unification - I think I accomplished this by my previous simplifications
 
-Complete UnifiedGameState integration
+[x]Complete UnifiedGameState integration - I think this is also accomplished by previous simplifications
 
-Resolve circular dependencies with interfaces:
-
-python
-# src/interfaces.py
-class IDungeonState(ABC):
-    def get_visible_area(self): ...
-    def move_party(self, direction): ...
-    # Other essential methods
-Rendering Abstraction
-
-Finalize IRenderer interface
-
-Implement adapter for EnhancedDungeonState
-
-Complete WebRenderer for JSON output
-
+(Removed interfaces making for a simpler design for now)
 Phase 2: AI Integration Enhancement
 Agent Refactoring
 
