@@ -68,7 +68,7 @@ class DungeonSystem:
             self.state.grid, 
             self.state.party_position
         )
-        self.visibility_system.update_visibility()
+        print(f"Visibility system initialized at: {self.state.party_position}")
 
     def _set_initial_party_position(self):
         """Set initial party position near first up stair"""
@@ -82,9 +82,9 @@ class DungeonSystem:
             
             # Try to place one step beyond the stair
             if orientation == 'horizontal':
-                candidate_pos = (stair_x, stair_y + 1)
+                candidate_pos = (stair_x, stair_y + 1) # need to check which way to place
             else:
-                candidate_pos = (stair_x + 1, stair_y)
+                candidate_pos = (stair_x + 1, stair_y) # ditto
             
             # Use candidate position if valid, otherwise use stair position
             if self.state.is_valid_position(candidate_pos):

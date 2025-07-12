@@ -50,29 +50,28 @@ class VisibilitySystemNeo:
         self.update_visibility()
 
     def update_visibility(self):
-        """Reveal area around party with line-of-sight blocking"""
-        cx, cy = self.party_position
-        new_visible = set()
-        print(f"Updating visibility at: ({cx}, {cy})")
+        """Reveal area around party with proper coordinate handling"""
+        x, y = self.party_position
+        print(f"Updating visibility at: ({y}, {x})")
         
-        # Keep existing explored cells and add new ones
         new_explored = set(self.explored)
         
-        # Add cells in a 7x7 area with line-of-sight checks
-        for dx in range(-2, 3):
-            for dy in range(-2, 3):
-                # Skip corners for diamond shape
-                if abs(dx) + abs(dy) > 4:
+        # Add 5x5 diamond area
+        for d_y in range(-2, 3):
+            for d_x in range(-2, 3):
+                # Diamond shape
+                if abs(d_y) + abs(d_x) > 3:
                     continue
                     
-                x, y = cx + dx, cy + dy
-                if 0 <= x < self.width and 0 <= y < self.height:
-                    if self.is_visible_through(cx, cy, x, y):
-                        new_explored.add((x, y))
+                new_y = y + d_y
+                new_x = x + d_x
+                
+                if 0 <= new_y < self.height and 0 <= new_x < self.width:
+                    new_explored.add((new_y, new_x))
+                    print(f"  - Added position: ({new_y}, {new_x})")
+
+        self.explored = new_explored
         
-         # Update exploration memory
-        self.explored |= new_visible
-        self.visible = new_visible
         print(f"Total explored positions: {len(self.explored)}")
         
     def is_visible_through(self, start_x, start_y, end_x, end_y):

@@ -4,9 +4,11 @@ Modular Dungeon Generation
 
 
 May have to work up to the next part because I simplified things to get them to the point the DeepSeek could help me fix them.
-[x]Now I have movement of party and blocking by walls kind of working
-[]Need to fix orientation of some doors
-[]Get Fog Of War implemented, right now its all clear so the dungeon shows through.Need to add it back with line of sight blocking and see if it works.
+[x] Now I have movement of party and blocking by walls kind of working
+[] Still need to fix initial party placement so it doesn't just moev to the right. It should move to the open corridor spot next to the stairs.
+[] Need to fix orientation of some doors
+[x] Get Fog Of War implemented, right now its all clear so the dungeon shows through.
+[] Still need to fix it so it uses line of sight blocking.
 ** Note Walls are not a cell thing, they are a construct in my mind and they are drawn.. may be an issue to deal with later. It surprised me. We block on NOTHING for now.
 
 Split DungeonGenerator into:

@@ -106,7 +106,7 @@ class DungeonRendererNeo:
             for x in range(state.width):
                 cell = state.grid[y][x]
 
-                is_explored = visibility_system and visibility_system.is_explored(x, y)
+                is_explored = visibility_system and visibility_system.is_explored(y, x)
                 
                 if is_explored:
                     explored_count += 1
@@ -155,54 +155,42 @@ class DungeonRendererNeo:
         self._draw_party_icon(base_draw, party_y * cs, party_x * cs)
 
         # --- Fog layer
-        fog_img = Image.new('RGBA', (width, height), (0, 0, 0, 255))
-        fog_draw = ImageDraw.Draw(fog_img)
-        
-        # Cut holes in fog layer for explored cells
-        if debug_show_all or visibility_system:
-            for y in range(state.height):
-                for x in range(state.width):
-                    # if visibility_system.is_explored(x, y):
-                    explored_count += 1
-                    # Make this cell transparent in fog layer
-                    fog_draw.rectangle(
-                        [x*cs, y*cs, (x+1)*cs, (y+1)*cs],
-                        fill=(0, 0, 0, 0)  # Fully transparent
-                    )
-
-        # Composite layers
-        img = Image.new('RGBA', base_img.size)
-        img.paste(base_img, (0, 0))
-        img.alpha_composite(fog_img)
-        
-        # Convert to RGB for final output
-        result_img = img.convert('RGB')
-        draw = ImageDraw.Draw(result_img)
-
         
         print(f"Rendered explored cells: {explored_count}/{state.width*state.height}")
-
+        myexplored_count = 0
         if not debug_show_all and visibility_system:
             # Create fog layer
             fog_img = Image.new('RGBA', (width, height), (0, 0, 0, 255))  # Opaque black
             fog_draw = ImageDraw.Draw(fog_img)
             
             # Cut holes in fog layer for explored cells
+
             for y in range(state.height):
                 for x in range(state.width):
                     if visibility_system.is_explored(x, y):
-                        # Make this cell transparent
+                        myexplored_count += 1
+                        # Make this cell transparent in fog layer
                         fog_draw.rectangle(
                             [x*cs, y*cs, (x+1)*cs, (y+1)*cs],
                             fill=(0, 0, 0, 0)  # Fully transparent
                         )
+            # this proves I can cut a hole in the fog, but need to fix above so that there are positions to cut
+            test = False
+            if test:
+                fog_draw.rectangle(
+                                [0*cs, 0*cs, (0+1)*cs, (0+1)*cs],
+                                fill=(0, 0, 0, 0) )
             
             # Composite layers
             base_rgba = base_img.convert('RGBA')
             composite = Image.alpha_composite(base_rgba, fog_img)
             result_img = composite.convert('RGB')
+            print(f"my explored cells: {myexplored_count}/{state.width*state.height}")
+
+            print("fog")
         else:
             result_img = base_img  # No fog in debug mode
+            print("no fog")
 
         return result_img
     
