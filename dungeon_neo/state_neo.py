@@ -42,8 +42,8 @@ class DungeonStateNeo:
         self._height = len(self.grid)
         self._width = len(self.grid[0]) if self.grid else 0
         
-        # Determine starting position
-        self._party_position = self._determine_start_position()
+        # Initialize party position to (0, 0) as placeholder
+        self._party_position = (0, 0)
 
         # Create orientation lookup dictionaries
         self.door_orientations = {}
@@ -55,6 +55,9 @@ class DungeonStateNeo:
         for stair in self.stairs:
             pos = (stair['row'], stair['col'])
             self.stair_orientations[pos] = stair['orientation'] # stair.get('orientation', 'horizontal') # mimic door for this just in case, change back if it breaks I guess
+
+        # Initialize secret mask
+        self.secret_mask = [[False] * self.width for _ in range(self.height)]
 
     @property
     def width(self):
@@ -102,17 +105,6 @@ class DungeonStateNeo:
             grid.append(row)
         return grid
 
-    def _determine_start_position(self):
-        # Find starting position (stairs or first room or center)
-        if self.stairs:
-            stair = self.stairs[0]
-            return (stair['row'], stair['col'])  # Use row/col instead of position
-        # Fallback to first room center
-        if self.rooms:
-            first_room = self.rooms[0]
-            return first_room['center_x'], first_room['center_y']
-        # Fallback to center of grid
-        return (self.height // 2, self.width // 2)
 
     def get_valid_moves(self, position=None):
         """Get list of valid move directions from current position"""
@@ -172,3 +164,10 @@ class DungeonStateNeo:
         if 0 <= x < self.height and 0 <= y < self.width:
             return self.grid[x][y]
         return None
+
+    def reveal_secret(self, x, y):
+        """Mark a secret door as discovered"""
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self.secret_mask[y][x] = True
+            return True
+        return False

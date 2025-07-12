@@ -30,6 +30,7 @@
     <div class="debug-controls">
         <button id="debug-toggle">Toggle Debug View</button>
         <button id="reset">Generate New Dungeon</button>
+        <button id="debug-state">Debug State</button>
     </div>
     
     <img id="dungeon-map" src="" alt="Dungeon Map">
@@ -42,37 +43,52 @@
         let debugMode = false;
         
         // Initialize the map
-        function updateMap() {
-            const map = document.getElementById('dungeon-map');
-            // Use correct API path with prefix
-            map.src = `/api/dungeon-image?debug=${debugMode}&t=${new Date().getTime()}`;
-        }
+        let lastUpdateTime = 0;
+        
+    function updateMap() {
+        const map = document.getElementById('dungeon-map');
+        const now = new Date().getTime();
+        
+        // Create a hidden iframe to force cache busting
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
 
-        // Move party
-        function move(direction) {
-            // Use correct API path with prefix
-            fetch(`/api/move/${direction}`, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateMap();
-                    } else {
-                        alert(data.message);
-                    }
-                });
-        }
+        map.src = `/api/dungeon-image?debug=${debugMode}&t=${now}`;
+        // iframe.src = `/api/dungeon-image?debug=${debugMode}&t=${now}`;
+        // document.body.appendChild(iframe);
+        
+        // // Update the image after iframe loads
+        // iframe.onload = function() {
+        //     map.src = iframe.src;
+        //     document.body.removeChild(iframe);
+        // };
+    }
 
-        // Reset dungeon
-        function resetDungeon() {
-            // Use correct API path with prefix
-            fetch('/api/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        debugMode = false;
-                        updateMap();
-                    }
-                });
+    function move(direction) {
+        // Add visual feedback during movement
+        const map = document.getElementById('dungeon-map');
+        map.style.opacity = '0.7';
+        
+        fetch(`/api/move/${direction}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update position display
+                    document.getElementById('position').textContent = 
+                        `${data.new_position[0]}, ${data.new_position[1]}`;
+                    
+                    // Force map refresh
+                    updateMap();
+                    
+                    // Restore opacity after a delay
+                    setTimeout(() => {
+                        map.style.opacity = '1';
+                    }, 300);
+                } else {
+                    alert(data.message);
+                    map.style.opacity = '1';
+                }
+            });
         }
 
         // Setup event listeners
@@ -86,7 +102,7 @@
             updateMap();
         });
         
-        document.getElementById('reset').addEventListener('click', resetDungeon);
+        // document.getElementById('reset').addEventListener('click', resetDungeon);
 
         // Initialize on load
         window.addEventListener('load', updateMap);

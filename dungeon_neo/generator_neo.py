@@ -52,7 +52,6 @@ class DungeonGeneratorNeo:
 
 
     def __init__(self, options=None):
-        #print(".....................................",options)
         self.opts = options
         self.n_rows = options['n_rows']
         self.n_cols = options['n_cols']
@@ -313,7 +312,7 @@ class DungeonGeneratorNeo:
         for r in range(r1 - 1, r2 + 2):
             if r <= self.max_row:
                 if not (self.cell[r][c1 - 1] & (self.ROOM | self.ENTRANCE)):
-                    self.cell[r][c1 - 1] |= self.PERIMETER
+                    self.cell[r][c1 - 1] |= (self.BLOCKED | self.PERIMETER)
                 if not (self.cell[r][c2 + 1] & (self.ROOM | self.ENTRANCE)):
                     self.cell[r][c2 + 1] |= self.PERIMETER
         
@@ -322,7 +321,7 @@ class DungeonGeneratorNeo:
                 if not (self.cell[r1 - 1][c] & (self.ROOM | self.ENTRANCE)):
                     self.cell[r1 - 1][c] |= self.PERIMETER
                 if not (self.cell[r2 + 1][c] & (self.ROOM | self.ENTRANCE)):
-                    self.cell[r2 + 1][c] |= self.PERIMETER
+                    self.cell[r2 + 1][c] |= (self.BLOCKED | self.PERIMETER)
 
     def set_room(self, proto):
         if proto is None:

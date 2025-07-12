@@ -69,8 +69,9 @@ class DungeonRendererNeo:
         self.cell_size = cell_size
         
     def render(self, state: DungeonStateNeo, debug_show_all=False, include_legend=True, visibility_system=None):
-        dungeon_img = self._render_dungeon(state, debug_show_all)
-        
+        # Pass visibility_system to _render_dungeon
+        dungeon_img = self._render_dungeon(state, debug_show_all, visibility_system)
+        print(f"Render in render_neo.py")
         if include_legend:
             icons = self.generate_legend_icons()
             return self.create_composite_image(dungeon_img, icons)
@@ -79,62 +80,143 @@ class DungeonRendererNeo:
     def _render_dungeon(self, state: DungeonStateNeo, debug_show_all=False, visibility_system=None):
         width = state.width * self.cell_size
         height = state.height * self.cell_size
-        img = Image.new('RGB', (width, height), self.COLORS['background'])
-        draw = ImageDraw.Draw(img)
+        base_img = Image.new('RGB', (width, height), self.COLORS['background'])
+        base_draw = ImageDraw.Draw(base_img)
+        cs = self.cell_size
         
         # Draw grid
-        self._draw_grid(draw, width, height)
+        self._draw_grid(base_draw, width, height)
+        
+        # DEBUG: Draw red dot at party position
+        party_x, party_y = state.party_position
+        base_draw.ellipse([
+            party_y*cs + cs//3, party_x*cs + cs//3,
+            party_y*cs + 2*cs//3, party_x*cs + 2*cs//3
+        ], fill="red")
+
+        print(f"Rendering dungeon at size {width}x{height}")
+        print(f"Party position: {state.party_position}")
+
+        explored_count = 0
+
+        print(f"Rendering with visibility_system: {visibility_system is not None}")
         
         # Draw cells with visibility handling
         for y in range(state.height):
-            # Validate row exists
-            if y >= len(state.grid):
-                continue
-                
-            row = state.grid[y]
             for x in range(state.width):
-                # Validate column exists
-                if x >= len(row):
+                cell = state.grid[y][x]
+
+                is_explored = visibility_system and visibility_system.is_explored(x, y)
+                
+                if is_explored:
+                    explored_count += 1
+
+                x_pix = x * cs
+                y_pix = y * cs
+                
+                # Handle secrets first - always as walls if not discovered
+                if cell.is_secret and not state.secret_mask[y][x]:
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
                     continue
-                    
-                cell = row[x]
                 
-                # Safer validation without type check
-                if cell is None or not hasattr(cell, 'base_type'):
-                    # Create fallback cell
-                    from dungeon_neo.cell_neo import DungeonCellNeo
-                    from dungeon_neo.constants import CELL_FLAGS
-                    cell = DungeonCellNeo(CELL_FLAGS['NOTHING'], x, y)
+
+                # Draw base cell
+                if cell.is_room:
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['room'])
+                elif cell.is_corridor:
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
+                elif cell.is_blocked:
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
+                elif cell.is_door:
+                    # Draw door space as corridor base
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
+                    # Actual door will be drawn later
                 
-                # Determine visibility
-                vis_status = "unexplored"
-                if visibility_system:
-                    vis_status = visibility_system.get_visibility((x, y))
+                # Draw doors
+                if cell.is_door:
+                    orientation = state.get_door_orientation(cell.x, cell.y)
+                    self._draw_door(base_draw, x_pix, y_pix, cell, state)
                 
-                is_visible = debug_show_all or (vis_status == "visible")
-                is_explored = debug_show_all or (vis_status in ("visible", "explored"))
+                # Draw stairs
+                if cell.is_stairs:
+                    stair_type = 'up' if cell.is_stair_up else 'down'
+                    orientation = state.get_stair_orientation(cell.x, cell.y)
+                    self._draw_stairs(base_draw, x_pix, y_pix, stair_type, orientation)
                 
-                # Draw cell based on visibility status
-                if is_visible:
-                    self._draw_visible_cell(
-                        draw, 
-                        x * self.cell_size, 
-                        y * self.cell_size, 
-                        cell,
-                        state
-                    )
-                elif is_explored:
-                    self._draw_explored_cell(
-                        draw, 
-                        x * self.cell_size, 
-                        y * self.cell_size, 
-                        cell
+                # Draw labels
+                if cell.has_label:
+                    self._draw_label(base_draw, x_pix, y_pix, cell)
+
+                
+        # Draw grid on top of cells
+        self._draw_grid(base_draw, width, height)
+
+        # Draw party icon last
+        self._draw_party_icon(base_draw, party_y * cs, party_x * cs)
+
+        # --- Fog layer
+        fog_img = Image.new('RGBA', (width, height), (0, 0, 0, 255))
+        fog_draw = ImageDraw.Draw(fog_img)
+        
+        # Cut holes in fog layer for explored cells
+        if debug_show_all or visibility_system:
+            for y in range(state.height):
+                for x in range(state.width):
+                    # if visibility_system.is_explored(x, y):
+                    explored_count += 1
+                    # Make this cell transparent in fog layer
+                    fog_draw.rectangle(
+                        [x*cs, y*cs, (x+1)*cs, (y+1)*cs],
+                        fill=(0, 0, 0, 0)  # Fully transparent
                     )
 
-        # Draw grid on top of cells
-        self._draw_grid(draw, width, height)
+        # Composite layers
+        img = Image.new('RGBA', base_img.size)
+        img.paste(base_img, (0, 0))
+        img.alpha_composite(fog_img)
         
-        return img
+        # Convert to RGB for final output
+        result_img = img.convert('RGB')
+        draw = ImageDraw.Draw(result_img)
+
+        
+        print(f"Rendered explored cells: {explored_count}/{state.width*state.height}")
+
+        if not debug_show_all and visibility_system:
+            # Create fog layer
+            fog_img = Image.new('RGBA', (width, height), (0, 0, 0, 255))  # Opaque black
+            fog_draw = ImageDraw.Draw(fog_img)
+            
+            # Cut holes in fog layer for explored cells
+            for y in range(state.height):
+                for x in range(state.width):
+                    if visibility_system.is_explored(x, y):
+                        # Make this cell transparent
+                        fog_draw.rectangle(
+                            [x*cs, y*cs, (x+1)*cs, (y+1)*cs],
+                            fill=(0, 0, 0, 0)  # Fully transparent
+                        )
+            
+            # Composite layers
+            base_rgba = base_img.convert('RGBA')
+            composite = Image.alpha_composite(base_rgba, fog_img)
+            result_img = composite.convert('RGB')
+        else:
+            result_img = base_img  # No fog in debug mode
+
+        return result_img
+    
+    def _draw_party_icon(self, draw, x, y):
+        """Draw party icon at position"""
+        size = self.cell_size
+        center_x = x + size // 2
+        center_y = y + size // 2
+        radius = size // 3
+        draw.ellipse([
+            center_x - radius, center_y - radius,
+            center_x + radius, center_y + radius
+        ], fill="#FF0000")  # Red circle
+
 
     def _draw_visible_cell(self, draw, x, y, cell, state):
         """Draw a fully visible cell with comprehensive null checks"""
@@ -199,13 +281,9 @@ class DungeonRendererNeo:
         for x in range(0, width, self.cell_size):
             draw.line([(x, 0), (x, height)], fill=self.COLORS['grid'], width=1)
     
-    def _draw_cell(self, draw, x, y, cell, is_visible, stair_dict=None):
+    def _draw_cell(self, draw, x, y, cell, stair_dict=None):
         x_pixel = y * self.cell_size
         y_pixel = x * self.cell_size
-        
-        if not is_visible:
-            self._draw_explored_cell(draw, x_pixel, y_pixel, cell)
-            return
             
         if cell.base_type & self.BLOCKED:
             self._draw_wall(draw, x_pixel, y_pixel)
@@ -237,10 +315,6 @@ class DungeonRendererNeo:
             x, y, 
             x + self.cell_size, y + self.cell_size
         ], fill=self.COLORS['corridor'])
-    
-    def _draw_explored_cell(self, draw, x, y, cell):
-        size = self.cell_size
-        draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['explored'])
 
     def has_open_space(self, r, c):
         """Check if coordinates contain open space"""
@@ -258,7 +332,7 @@ class DungeonRendererNeo:
 
         # Determine door type from cell properties
         if cell.is_arch: door_type = 'arch'
-        elif cell.is_door_open: door_type = 'door'
+        elif cell.is_door_unlocked: door_type = 'door'
         elif cell.is_locked: door_type = 'locked'
         elif cell.is_trapped: door_type = 'trapped'
         elif cell.is_secret: door_type = 'secret'

@@ -9,21 +9,39 @@ def status_check():
 
 @api_bp.route('/move/<direction>', methods=['POST'])
 def move_party(direction):
-    current_app.game_state.move(direction)
+    success, message, new_position = current_app.game_state.dungeon.move_party(direction)
     return jsonify({
-        "message": f"Moved {direction}",
-        "room": current_app.game_state.get_current_room()
+        "success": success,
+        "message": message,
+        "new_position": new_position
     })
 
-@api_bp.route('/dungeon-image')  # Make sure this route is defined
+@api_bp.route('/debug-state')
+def debug_state():
+    state = current_app.game_state.dungeon.state
+    return jsonify({
+        "party_position": state.party_position,
+        "visibility_system": {
+            "party_position": current_app.game_state.dungeon.visibility_system.party_position,
+            "visible_cells": [
+                [current_app.game_state.dungeon.visibility_system.is_visible(x, y) 
+                 for x in range(state.width)] 
+                for y in range(state.height)
+            ]
+        }
+    })
+
+@api_bp.route('/dungeon-image')
 def get_dungeon_image():
     debug = request.args.get('debug', 'false').lower() == 'true'
+    print(f"Generating dungeon image - debug mode: {debug}")
     img = current_app.game_state.get_dungeon_image(debug)
     
-    # Convert image to bytes
+    # Convert to bytes
     img_io = io.BytesIO()
     img.save(img_io, 'PNG')
     img_io.seek(0)
+    
     return send_file(img_io, mimetype='image/png')
 
 # Add reset endpoint

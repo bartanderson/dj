@@ -9,7 +9,11 @@ class GameState:
         self.dungeon.move_party(direction)
     
     def get_dungeon_image(self, debug=False):
-        return self.dungeon.get_image(debug)
+        img = self.dungeon.get_image(debug)
+        
+        if img.mode == 'RGBA':
+            return img.convert('RGB')
+        return img
     
     def get_current_room(self):
         return self.dungeon.get_current_room_description()

@@ -108,6 +108,10 @@ class DungeonCellNeo:
         return self._safe_property_check(self.BLOCKED)
 
     @property
+    def is_perimeter(self):
+        return self._safe_property_check(self.PERIMETER)
+
+    @property
     def is_door(self):
         return self._safe_property_check(self.DOORSPACE)
 
@@ -116,7 +120,7 @@ class DungeonCellNeo:
         return self._safe_property_check(self.ARCH)
     
     @property
-    def is_door_open(self):
+    def is_door_unlocked(self):
         return self._safe_property_check(self.DOOR)
     
     @property
