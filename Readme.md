@@ -5,10 +5,14 @@ Modular Dungeon Generation
 
 May have to work up to the next part because I simplified things to get them to the point the DeepSeek could help me fix them.
 [x] Now I have movement of party and blocking by walls kind of working
-[] Still need to fix initial party placement so it doesn't just moev to the right. It should move to the open corridor spot next to the stairs.
-[] Need to fix orientation of some doors
+[x] Still need to fix initial party placement so it doesn't just moev to the right. It should move to the open corridor spot next to the stairs.
+[x] Need to fix orientation of some doors
 [x] Get Fog Of War implemented, right now its all clear so the dungeon shows through.
-[] Still need to fix it so it uses line of sight blocking.
+[x] Still need to fix it so it uses line of sight blocking.
+[] Need to fix rendering of secret door in masked mode. shows as corridor I think but should show as wall.
+[] Maybe add more manipulation of dungeon for DM to draw random things but maybe that is just a wish or I can generate a bunch for him to use. But don't let details bog you down so maybe for later.
+[] Might be nice to add open door and switch door from regular look to open door. Locked would change to regular door. Opened door would swing inward or outward maybe randomize? Portcullis becomes arch when open. Again maybe these are enhancements when I get farther along. Love to get this buttoned up a little so we can add AI back.
+[] Take a look at doc on top of desktop with suggestions from AI about integrating some DM tools to keep it simple.
 ** Note Walls are not a cell thing, they are a construct in my mind and they are drawn.. may be an issue to deal with later. It surprised me. We block on NOTHING for now.
 
 Split DungeonGenerator into:

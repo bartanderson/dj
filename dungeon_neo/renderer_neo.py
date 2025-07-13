@@ -33,7 +33,7 @@ class DungeonRendererNeo:
     COLORS = {
         'room': (255, 255, 255),
         'corridor': (200, 200, 200),
-        'wall': (50, 50, 50),
+        'wall': (52, 73, 94),       # seems like we were using background for walls, so just set it for when I was using wall
         'door': (101, 67, 33),      # Darker brown
         'arch': (160, 120, 40),     # Light brown
         'secret': (101, 67, 33),    # Darker brown
@@ -45,7 +45,7 @@ class DungeonRendererNeo:
         'grid': (100, 100, 100),
         'background': (52, 73, 94),
         'explored': (100, 100, 100),
-        'legend_bg': (45, 45, 45),
+        'legend_bg': (25, 25, 25),
         'legend_text': (255, 255, 255)
     }
 
@@ -116,26 +116,35 @@ class DungeonRendererNeo:
                 
                 # Handle secrets first - always as walls if not discovered
                 if cell.is_secret:
+                    # Always start with wall background
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
+                    
                     if not state.secret_mask[y][x]:
-                        # Always draw as wall first
-                        base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
-                        
+                        # Undiscovered secret - normal view
                         if debug_show_all:
-                            # Draw the door on top of the wall background
+                            # Debug view: show door overlay
                             self._draw_door(base_draw, x_pix, y_pix, cell, state)
-                            # Then add red outline
+                            # Add red outline
                             base_draw.rectangle(
                                 [x_pix, y_pix, x_pix+cs, y_pix+cs],
                                 outline="red",
                                 width=2
                             )
-
+                        # Continue to prevent double-rendering
                         continue
                     else:
-                        # Discovered secret - draw as normal door
-                        base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
+                        # Discovered secret
                         self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                        if debug_show_all:
+                            # Add red outline in debug mode
+                            base_draw.rectangle(
+                                [x_pix, y_pix, x_pix+cs, y_pix+cs],
+                                outline="red",
+                                width=3
+                            )
+                        # Continue to prevent double-rendering
                         continue
+
 
                 # Then handle room cells normally
                 elif cell.is_room:
@@ -305,11 +314,11 @@ class DungeonRendererNeo:
             stair = stair_dict.get((x, y))
             self._draw_stairs(draw, x_pixel, y_pixel, cell, stair)
     
-    def _draw_wall(self, draw, x, y):
-        draw.rectangle([
-            x, y, 
-            x + self.cell_size, y + self.cell_size
-        ], fill=self.COLORS['wall'])
+    def _draw_wall(self, draw, x, y, size=None):
+        """Draw wall icon for legend"""
+        if size is None:
+            size = self.cell_size
+        draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['wall'])
     
     def _draw_room(self, draw, x, y):
         draw.rectangle([
@@ -332,10 +341,13 @@ class DungeonRendererNeo:
         cell = self.state.grid[r][c]
         return cell and (cell.is_room or cell.is_corridor)
     
-    def _draw_door(self, draw, x, y, cell, state):
-        """Draw door using state for orientation lookup"""
+    def _draw_door(self, draw, x, y, cell, state, size=None):
+        """Draw door with consistent appearance at any scale"""
+        size = size or self.cell_size
+        rev_orientation = 'vertical'
         # Get reversed orientation from state
-        rev_orientation = state.get_door_orientation(cell.x, cell.y)
+        if state:
+            rev_orientation = state.get_door_orientation(cell.x, cell.y)
 
         # Reverse all orientations
         if rev_orientation == 'horizontal':
@@ -350,7 +362,7 @@ class DungeonRendererNeo:
         elif cell.is_door_unlocked: door_type = 'door'
         elif cell.is_locked: door_type = 'locked'
         elif cell.is_trapped: door_type = 'trapped'
-        elif cell.is_secret: door_type = 'secret'
+        #elif cell.is_secret: door_type = 'secret'
         elif cell.is_portc: door_type = 'portc'
         else: door_type = 'door'
 
@@ -453,17 +465,19 @@ class DungeonRendererNeo:
                     (x + 3*self.cell_size//4, y + self.cell_size//2)
                 ], fill=(200, 10, 20), width=2)
     
-    def _draw_stairs(self, draw, x, y, stair_type, orientation):
+    def _draw_stairs(self, draw, x, y, stair_type, orientation, size=None):
         """Draw stair visualization with proper parameters"""
+        """Draw stairs with consistent appearance at any scale"""
+        size = size or self.cell_size
         color = self.COLORS['stairs_up'] if stair_type == 'up' else self.COLORS['stairs_down']
         
         step_count = 5
-        spacing = self.cell_size / (step_count + 1)
-        max_length = self.cell_size * 0.7
+        spacing = size / (step_count + 1)
+        max_length = size * 0.7
         step_color = (80, 80, 80)  # Dark gray for steps
         
         if orientation == 'horizontal':
-            center_y = y + self.cell_size // 2
+            center_y = y + size // 2
             for i in range(1, step_count + 1):
                 # Tapered for down stairs, uniform for up
                 length = max_length * (i / step_count) if stair_type == 'down' else max_length
@@ -473,7 +487,7 @@ class DungeonRendererNeo:
                     x_pos, center_y + length//2
                 ], fill=step_color, width=2)
         else:
-            center_x = x + self.cell_size // 2
+            center_x = x + size // 2
             for i in range(1, step_count + 1):
                 length = max_length * (i / step_count) if stair_type == 'down' else max_length
                 y_pos = y + i * spacing
@@ -497,8 +511,7 @@ class DungeonRendererNeo:
             return 'portc'
         return 'door'
 
-    def generate_legend_icons(self, icon_size=30):
-        """Generate consistent legend icons"""
+    def generate_legend_icons(self, icon_size=20):
         elements = [
             ('room', 'Room'),
             ('corridor', 'Corridor'),
@@ -507,36 +520,75 @@ class DungeonRendererNeo:
             ('locked', 'Locked Door'),
             ('trapped', 'Trapped Door'),
             ('secret', 'Secret Door'),
+            ('secret_debug', 'Secret Door (Debug)'),  # New entry
             ('portc', 'Portcullis'),
             ('stairs_up', 'Stairs Up'),
             ('stairs_down', 'Stairs Down')
         ]
+        
+        # Create mock state for consistent rendering
+        mock_state = type('MockState', (), {
+            'get_door_orientation': lambda self, x, y: 'horizontal'
+        })()
         
         icons = {}
         for element, label in elements:
             img = Image.new('RGB', (icon_size, icon_size), self.COLORS['legend_bg'])
             draw = ImageDraw.Draw(img)
             
-            # Draw cell background
-            margin = 2
-            draw.rectangle([
-                margin, margin, 
-                icon_size - margin, icon_size - margin
-            ], fill=self.COLORS['background'])
+            # Reduced margin for better fitting
+            margin = 1
+            cell_size = icon_size - 2 * margin
             
-            # Draw element
+            # Draw element with proper background
             if element == 'room':
-                self._draw_room(draw, 0, 0, icon_size)
+                self._draw_room(draw, margin, margin, cell_size)
             elif element == 'corridor':
-                self._draw_corridor(draw, 0, 0, icon_size)
-            elif element in ['arch', 'door', 'locked', 'trapped', 'secret', 'portc']:
-                self._draw_door_icon(draw, 0, 0, icon_size, element, 'horizontal')
+                self._draw_corridor(draw, margin, margin, cell_size)
+            elif element in ['arch', 'door', 'locked', 'trapped', 'portc']:
+                # Create mock cell
+                mock_cell = type('MockCell', (object,), {
+                    'is_arch': element == 'arch',
+                    'is_door_unlocked': element == 'door',
+                    'is_locked': element == 'locked',
+                    'is_trapped': element == 'trapped',
+                    'is_portc': element == 'portc',
+                    'x': 0,
+                    'y': 0
+                })
+                # Draw on corridor background
+                self._draw_corridor(draw, margin, margin, cell_size)
+                self._draw_door(draw, margin, margin, mock_cell, mock_state, cell_size)
+            elif element == 'secret':
+                # Normal secret door
+                self._draw_wall(draw, margin, margin, cell_size)
+            elif element == 'secret_debug':
+                # Debug secret door
+                self._draw_wall(draw, margin, margin, cell_size)
+                mock_cell = type('MockCell', (object,), {
+                    'is_arch': element == 'arch',
+                    'is_door_unlocked': element == 'door',
+                    'is_locked': element == 'locked',
+                    'is_trapped': element == 'trapped',
+                    'is_portc': element == 'portc',
+                    'x': 0,
+                    'y': 0
+                })
+                self._draw_door(draw, margin, margin, mock_cell, mock_state, cell_size)
+                # Add red outline
+                draw.rectangle(
+                    [margin, margin, margin+cell_size, margin+cell_size],
+                    outline="red",
+                    width=1
+                )
             elif 'stairs' in element:
                 stair_type = element.split('_')[1]
-                self._draw_stair_icon(draw, 0, 0, icon_size, stair_type, 'horizontal')
+                # Draw on corridor background
+                self._draw_corridor(draw, margin, margin, cell_size)
+                self._draw_stairs(draw, margin, margin, stair_type, 'horizontal', cell_size)
             
             icons[element] = (img, label)
-            
+        
         return icons
 
     def create_composite_image(self, dungeon_img, icons, position='right', padding=20):
@@ -569,121 +621,32 @@ class DungeonRendererNeo:
         
         return composite
 
-    def _draw_door_icon(self, draw, x, y, size, door_type, orientation):
-        """Draw door icon for legend"""
-        is_horizontal = (orientation == 'horizontal')
-        center_x = x + size // 2
-        center_y = y + size // 2
-        door_width = size // 3
-        arch_height = size // 6
-        color = self.COLORS.get(door_type, self.COLORS['door'])
+    # def _draw_stair_icon(self, draw, x, y, size, stair_type, orientation):
+    #     """Draw stair icon for legend"""
+    #     color = self.COLORS['stairs_up'] if stair_type == 'up' else self.COLORS['stairs_down']
+    #     step_count = 5
+    #     spacing = size / (step_count + 1)
+    #     max_length = size * 0.7
+    #     step_color = (80, 80, 80)
         
-        # Draw door slab
-        if door_type != 'secret':
-            if is_horizontal:
-                draw.rectangle([
-                    center_x - door_width//2, y + arch_height,
-                    center_x + door_width//2, y + size - arch_height
-                ], fill=color)
-            else:
-                draw.rectangle([
-                    x + arch_height, center_y - door_width//2,
-                    x + size - arch_height, center_y + door_width//2
-                ], fill=self.COLORS['wall'])
-
-        
-        # Draw arch for all doors except secrets
-        if door_type != 'secret':
-            if is_horizontal:
-                # Top arch
-                draw.rectangle([
-                    center_x - door_width//2, y,
-                    center_x + door_width//2, y + arch_height
-                ], fill=self.COLORS['arch'])
-                # Bottom arch
-                draw.rectangle([
-                    center_x - door_width//2, y + size - arch_height,
-                    center_x + door_width//2, y + size
-                ], fill=self.COLORS['arch'])
-            else:
-                # Left arch
-                draw.rectangle([
-                    x, center_y - door_width//2,
-                    x + arch_height, center_y + door_width//2
-                ], fill=self.COLORS['arch'])
-                # Right arch
-                draw.rectangle([
-                    x + size - arch_height, center_y - door_width//2,
-                    x + size, center_y + door_width//2
-                ], fill=self.COLORS['arch'])
-        
-        # Add special symbols
-        if door_type == 'locked':
-            # Diamond lock symbol
-            lock_size = size // 6
-            diamond = [
-                (center_x, center_y - lock_size//2),
-                (center_x + lock_size//2, center_y),
-                (center_x, center_y + lock_size//2),
-                (center_x - lock_size//2, center_y)
-            ]
-            draw.polygon(diamond, fill=(100, 100, 100))
-        
-        elif door_type == 'portc':
-            # Portcullis bars
-            bar_thickness = max(2, size // 12)
-            bar_count = 3
-            bar_spacing = size / (bar_count + 1)
-            
-            if is_horizontal:
-                for i in range(1, bar_count + 1):
-                    bar_y = y + i * bar_spacing
-                    draw.rectangle([
-                        center_x - door_width//2, bar_y - bar_thickness//2,
-                        center_x + door_width//2, bar_y + bar_thickness//2
-                    ], fill=(40, 40, 40))
-            else:
-                for i in range(1, bar_count + 1):
-                    bar_x = x + i * bar_spacing
-                    draw.rectangle([
-                        bar_x - bar_thickness//2, center_y - door_width//2,
-                        bar_x + bar_thickness//2, center_y + door_width//2
-                    ], fill=(40, 40, 40))
-        
-        elif door_type == 'secret':
-            # Add subtle indicator
-            pass
-            # draw.line([
-            #     (x + size//4, y + size//2),
-            #     (x + 3*size//4, y + size//2)
-            # ], fill=(150, 150, 200), width=2)
-
-    def _draw_stair_icon(self, draw, x, y, size, stair_type, orientation):
-        """Draw stair icon for legend"""
-        color = self.COLORS['stairs_up'] if stair_type == 'up' else self.COLORS['stairs_down']
-        step_count = 5
-        spacing = size / (step_count + 1)
-        max_length = size * 0.7
-        step_color = (80, 80, 80)
-        
-        if orientation == 'horizontal':
-            center_y = y + size // 2
-            for i in range(1, step_count + 1):
-                length = max_length * (i / step_count) if stair_type == 'down' else max_length
-                x_pos = x + i * spacing
-                draw.line([
-                    x_pos, center_y - length//2,
-                    x_pos, center_y + length//2
-                ], fill=step_color, width=2)
-        else:
-            center_x = x + size // 2
-            for i in range(1, step_count + 1):
-                length = max_length * (i / step_count) if stair_type == 'down' else max_length
-                y_pos = y + i * spacing
-                draw.line([
-                    center_x - length//2, y_pos,
-                    center_x + length//2, y_pos
-                ], fill=step_color, width=2)
+    #     if orientation == 'horizontal':
+    #         center_y = y + size // 2
+    #         for i in range(1, step_count + 1):
+    #             length = max_length * (i / step_count) if stair_type == 'down' else max_length
+    #             x_pos = x + i * spacing
+    #             draw.line([
+    #                 x_pos, center_y - length//2,
+    #                 x_pos, center_y + length//2
+    #             ], fill=step_color, width=2)
+    #     else:
+    #         center_x = x + size // 2
+    #         for i in range(1, step_count + 1):
+    #             length = max_length * (i / step_count) if stair_type == 'down' else max_length
+    #             y_pos = y + i * spacing
+    #             draw.line([
+    #                 center_x - length//2, y_pos,
+    #                 center_x + length//2, y_pos
+    #             ], fill=step_color, width=2)
 
     def _draw_room(self, draw, x, y, size=None):
         """Draw room icon, works for both grid and legend"""
