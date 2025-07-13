@@ -1,4 +1,9 @@
 from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
+import math
+
+DIRECTION_VECTORS_8 = {
+'n': (-1, 0), 's': (1, 0), 'e': (0, 1), 'w': (0, -1),
+'ne': (-1, 1), 'nw': (-1, -1), 'se': (1, 1), 'sw': (1, -1)}
 
 class VisibilitySystemNeo:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -50,30 +55,41 @@ class VisibilitySystemNeo:
         self.update_visibility()
 
     def update_visibility(self):
-        """Reveal area around party with proper coordinate handling"""
-        x, y = self.party_position
-        print(f"Updating visibility at: ({y}, {x})")
+        if not hasattr(self, 'party_position'):
+            return
         
-        new_explored = set(self.explored)
+        y0, x0 = self.party_position
+        new_visible = set()
         
-        # Add 5x5 diamond area
-        for d_y in range(-2, 3):
-            for d_x in range(-2, 3):
-                # Diamond shape
-                if abs(d_y) + abs(d_x) > 3:
-                    continue
-                    
-                new_y = y + d_y
-                new_x = x + d_x
+        # Always see current cell
+        new_visible.add((x0, y0))
+        
+        # Check in 8 directions
+        for dir, (dr, dc) in DIRECTION_VECTORS_8.items():
+            x, y = x0, y0
+            clear_path = True
+            
+            # Check up to 2 steps in each direction
+            for distance in range(1, 3):
+                x += dr
+                y += dc
                 
-                if 0 <= new_y < self.height and 0 <= new_x < self.width:
-                    new_explored.add((new_y, new_x))
-                    print(f"  - Added position: ({new_y}, {new_x})")
-
-        self.explored = new_explored
+                # Stop at boundaries
+                if not (0 <= x < self.height and 0 <= y < self.width):
+                    break
+                    
+                # Add cell if path is clear
+                if clear_path:
+                    new_visible.add((x, y))
+                    
+                # Check if cell blocks vision
+                if self._is_blocking(x, y):
+                    clear_path = False
         
-        print(f"Total explored positions: {len(self.explored)}")
-        
+        # Update visibility sets
+        self.visible = new_visible
+        self.explored |= new_visible
+       
     def is_visible_through(self, start_x, start_y, end_x, end_y):
         """Check if path is unobstructed (Bresenham's line algorithm)"""
         dx = abs(end_x - start_x)
@@ -106,23 +122,12 @@ class VisibilitySystemNeo:
         return (x, y) in self.explored  # Check set membership
 
     def _is_blocking(self, x, y):
-        """Check if a cell blocks light (walls, closed doors, etc.)"""
         cell = self.grid[y][x]
-        cell_value = cell.base_type
-        
-        # Always blocking
-        if cell_value & (self.BLOCKED | self.PERIMETER):
-            return True
-        
-        # Door handling
-        if cell_value & self.DOORSPACE:
-            # Portcullis and Arch don't block vision
-            if cell_value & (self.ARCH | self.PORTC):
-                return False
-            # All other doors block vision
-            return True
-        
-        return False
+        # Comprehensive wall detection
+        return (cell.is_blocked or 
+                cell.is_perimeter or
+                (cell.is_door and not (cell.is_arch or cell.is_portc)) or
+                cell.base_type == self.NOTHING)
     
     def get_visibility(self, position):
         """Get visibility status of a cell"""

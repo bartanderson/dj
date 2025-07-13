@@ -115,12 +115,31 @@ class DungeonRendererNeo:
                 y_pix = y * cs
                 
                 # Handle secrets first - always as walls if not discovered
-                if cell.is_secret and not state.secret_mask[y][x]:
-                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
-                    continue
-                
+                if cell.is_secret:
+                    if not state.secret_mask[y][x]:
+                        # Always draw as wall first
+                        base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
+                        
+                        if debug_show_all:
+                            # Draw the door on top of the wall background
+                            self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                            # Then add red outline
+                            base_draw.rectangle(
+                                [x_pix, y_pix, x_pix+cs, y_pix+cs],
+                                outline="red",
+                                width=2
+                            )
 
-                # Draw base cell
+                        continue
+                    else:
+                        # Discovered secret - draw as normal door
+                        base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
+                        self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                        continue
+
+                # Then handle room cells normally
+                elif cell.is_room:
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['room'])
                 if cell.is_room:
                     base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['room'])
                 elif cell.is_corridor:
@@ -315,8 +334,16 @@ class DungeonRendererNeo:
     
     def _draw_door(self, draw, x, y, cell, state):
         """Draw door using state for orientation lookup"""
-        # Get actual orientation from state
-        orientation = state.get_door_orientation(cell.x, cell.y)
+        # Get reversed orientation from state
+        rev_orientation = state.get_door_orientation(cell.x, cell.y)
+
+        # Reverse all orientations
+        if rev_orientation == 'horizontal':
+            orientation = 'vertical'
+        else:
+            orientation = 'horizontal'
+
+        #print(f"Rendering door at ({cell.x},{cell.y}) with orientation: {orientation}")
 
         # Determine door type from cell properties
         if cell.is_arch: door_type = 'arch'

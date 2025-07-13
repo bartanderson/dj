@@ -68,44 +68,41 @@ class DungeonSystem:
             self.state.grid, 
             self.state.party_position
         )
-        print(f"Visibility system initialized at: {self.state.party_position}")
+        #print(f"Visibility system initialized at: {self.state.party_position}")
 
     def _set_initial_party_position(self):
         """Set initial party position near first up stair"""
         # Find first up stair
-        up_stairs = [stair for stair in self.state.stairs if stair.get('key') == 'up']
+        up_stairs = [stair for stair in self.state.stairs if stair.get('key') == 'up'] # find all the up stairs. You would come down them to be here.
         
-        if up_stairs:
-            stair = up_stairs[0]
-            stair_x, stair_y = stair['row'], stair['col']
-            orientation = stair.get('orientation', 'horizontal')
+        if not up_stairs:
+            # Fallback to first room center
+            if self.state.rooms:
+                room = self.state.rooms[0]
+                center_x = (room['north'] + room['south']) // 2
+                center_y = (room['west'] + room['east']) // 2
+                self.state.party_position = (center_x, center_y)
+                return
             
-            # Try to place one step beyond the stair
-            if orientation == 'horizontal':
-                candidate_pos = (stair_x, stair_y + 1) # need to check which way to place
-            else:
-                candidate_pos = (stair_x + 1, stair_y) # ditto
-            
-            # Use candidate position if valid, otherwise use stair position
-            if self.state.is_valid_position(candidate_pos):
-                self.state.party_position = candidate_pos
-            else:
-                self.state.party_position = (stair_x, stair_y)
-            return
-        
-        # Fallback to first room center
-        if self.state.rooms:
-            room = self.state.rooms[0]
-            center_x = (room['north'] + room['south']) // 2
-            center_y = (room['west'] + room['east']) // 2
+            # Final fallback to dungeon center
+            center_x = self.state.height // 2
+            center_y = self.state.width // 2
             self.state.party_position = (center_x, center_y)
             return
-        
-        # Final fallback to dungeon center
-        center_x = self.state.height // 2
-        center_y = self.state.width // 2
-        self.state.party_position = (center_x, center_y)
-    
+        else:
+            stair = up_stairs[0]
+            stair_x, stair_y = stair['row'], stair['col']
+            
+            # Find corridor approach direction (opposite of stored vector)
+            dx = -stair['dx']
+            dy = -stair['dy']
+            
+            # Place party in approach corridor
+            party_x = stair_x - dx
+            party_y = stair_y - dy
+            
+            self.state.party_position = (party_x, party_y)
+                    
     def is_blocked_for_movement(self, cell):
         """Check if cell blocks movement"""
         print(f"is_blocked_for_movement {cell}")
@@ -138,17 +135,17 @@ class DungeonSystem:
         cell = self.state.get_cell(new_x, new_y)
 
         # Detailed cell debug
-        print(f"Cell at ({new_x},{new_y}):")
-        print(f"  Type: {type(cell)}")
-        print(f"  Base type: {hex(cell.base_type)}")
-        print(f"  is_blocked: {cell.is_blocked}")
-        print(f"  is_perimeter: {cell.is_perimeter}")
-        print(f"  is_door: {cell.is_door}")
-        print(f"  is_arch: {cell.is_arch}")
-        print(f"  is_room: {cell.is_room}")
-        print(f"  is_corridor: {cell.is_corridor}")
+        # print(f"Cell at ({new_x},{new_y}):")
+        # print(f"  Type: {type(cell)}")
+        # print(f"  Base type: {hex(cell.base_type)}")
+        # print(f"  is_blocked: {cell.is_blocked}")
+        # print(f"  is_perimeter: {cell.is_perimeter}")
+        # print(f"  is_door: {cell.is_door}")
+        # print(f"  is_arch: {cell.is_arch}")
+        # print(f"  is_room: {cell.is_room}")
+        # print(f"  is_corridor: {cell.is_corridor}")
 
-        print(f"move_party before is_blocked_for_movement {cell}")
+        # print(f"move_party before is_blocked_for_movement {cell}")
         if cell and self.is_blocked_for_movement(cell):
             return False, "Blocked by obstacle", self.state.party_position
         print(f"Movement not blocked. continuing")
@@ -165,18 +162,6 @@ class DungeonSystem:
         cx, cy = new_pos
         print("Explored area:")
         cx, cy = new_pos
-        # print(f"Visibility grid at ({cx},{cy}):")
-        # grid = ""
-        # for dy in range(-3, 4):
-        #     for dx in range(-3, 4):
-        #         x, y = cx + dx, cy + dy
-        #         if 0 <= x < self.state.width and 0 <= y < self.state.height:
-        #             explored = "X" if self.visibility_system.is_explored(x, y) else "."
-        #             grid += explored
-        #         else:
-        #             grid += " "
-        #     grid += "\n"
-        # print(grid)
         
         return True, f"Moved {direction}", new_pos
 

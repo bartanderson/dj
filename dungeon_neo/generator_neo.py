@@ -392,9 +392,15 @@ class DungeonGeneratorNeo:
                 self.cell[r][c] &= ~self.PERIMETER
                 self.cell[r][c] |= self.ENTRANCE
 
-            # Calculate door orientation
-            is_horizontal = open_dir in ['east', 'west']
-            orientation = 'horizontal' if is_horizontal else 'vertical'
+            # print(f"Door at ({door_r},{door_c}) - open_dir: {open_dir}")
+            # print(f"Adjacent cells:")
+            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+                nr, nc = door_r + dr, door_c + dc
+                cell_type = "WALL" if self.cell[nr][nc] & self.BLOCKED else "OPEN"
+                #print(f"  ({nr},{nc}): {cell_type}")
+            
+            orientation = 'horizontal' if open_dir in ['north', 'south'] else 'vertical'
+            #print(f"Setting orientation: {orientation}")
 
             
             door_type = self.door_type()
@@ -626,6 +632,10 @@ class DungeonGeneratorNeo:
                     break
                 end = ends.pop(0)
                 r, c = end['row'], end['col']
+                # Store corridor direction vector
+                next_pos = end['next']
+                end['corridor_dx'] = next_pos[0]
+                end['corridor_dy'] = next_pos[1]
                 
                 # For n != 2, maintain existing random behavior
                 stair_type = i if i < 2 else random.randint(0, 1)
@@ -652,17 +662,13 @@ class DungeonGeneratorNeo:
                 
                 for dir, config in self.stair_end.items():
                     if self.check_tunnel(self.cell, r, c, config):
-                        next_pos = config['next']
-                        next_row = r + next_pos[0]
-                        next_col = c + next_pos[1]
-                        dx = next_row - r
-                        dy = next_col - c
-                        is_horizontal = abs(dy) > abs(dx)
-                        orientation = 'horizontal' if is_horizontal else 'vertical'
+                        dx, dy = config['next']  # This is what matters
+                        orientation = 'horizontal' if dy != 0 else 'vertical'                  
                         end = {
-                            'row': r, 'col': c,
-                            'next_row': next_row,
-                            'next_col': next_col,
+                            'row': r, 
+                            'col': c,
+                            'dx': dx, 
+                            'dy': dy,
                             'orientation': orientation
                         }
                         ends.append(end)
@@ -797,18 +803,13 @@ class DungeonGeneratorNeo:
                 if self.cell[r][c] & self.BLOCKED:
                     self.cell[r][c] = self.NOTHING
 
-    def get_door_orientation(self, r, c):
-        """Determine door orientation based on adjacent grid cells"""
-        horizontal = (self.has_open_space(r, c-1) and 
-                     self.has_open_space(r, c+1))
-        vertical = (self.has_open_space(r-1, c) and 
-                   self.has_open_space(r+1, c))
-        
-        if horizontal and not vertical:
-            return 'horizontal'
-        if vertical and not horizontal:
-            return 'vertical'
-        return 'horizontal'  # Default to horizontal
+    def get_door_orientation(self, door_r, door_c, open_dir):
+        """Unified orientation based on physical layout"""
+        # Check actual passage direction
+        if open_dir in ['north', 'south']:
+            return 'horizontal'  # Spanning east-west
+        else:
+            return 'vertical'    # Spanning north-south
 
     def get_door_type(self, cell):
         if cell & ARCH:

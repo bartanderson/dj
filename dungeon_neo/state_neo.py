@@ -54,10 +54,17 @@ class DungeonStateNeo:
         self.stair_orientations = {}
         for stair in self.stairs:
             pos = (stair['row'], stair['col'])
-            self.stair_orientations[pos] = stair['orientation'] # stair.get('orientation', 'horizontal') # mimic door for this just in case, change back if it breaks I guess
-
+            self.stair_orientations[pos] = stair['orientation'] # stair.get('orientation', 'horizontal')
         # Initialize secret mask
         self.secret_mask = [[False] * self.width for _ in range(self.height)]
+        # Corridor directions for initial placement
+        self.stair_corridor_dirs = {}
+        for stair in self.stairs:
+            pos = (stair['row'], stair['col'])
+            self.stair_corridor_dirs[pos] = (
+                stair.get('corridor_dx', 0),
+                stair.get('corridor_dy', 0)
+            )
 
     @property
     def width(self):
@@ -76,6 +83,31 @@ class DungeonStateNeo:
         self._party_position = value
 
     def get_door_orientation(self, row, col):
+        """Override for corridor doors not connected to rooms"""
+        cell = self.get_cell(row, col)
+        
+        # Check if door is between two corridors
+        east = self.get_cell(row, col+1)
+        west = self.get_cell(row, col-1)
+        north = self.get_cell(row-1, col)
+        south = self.get_cell(row+1, col)
+        
+        # Determine corridor direction
+        if (east and east.is_corridor and 
+            west and west.is_corridor and
+            not (north and north.is_corridor) and
+            not (south and south.is_corridor)):
+            # Between east-west corridors → vertical door
+            return 'vertical'
+            
+        if (north and north.is_corridor and 
+            south and south.is_corridor and
+            not (east and east.is_corridor) and
+            not (west and west.is_corridor)):
+            # Between north-south corridors → horizontal door
+            return 'horizontal'
+        
+        # Default to generator's orientation
         return self.door_orientations.get((row, col), 'horizontal')
 
     def get_stair_orientation(self, row, col):
