@@ -117,12 +117,12 @@ class DungeonRendererNeo:
                 # Handle secrets first - always as walls if not discovered
                 if cell.is_secret:
                     # Always start with wall background
-                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
                     
                     if not state.secret_mask[y][x]:
                         # Undiscovered secret - normal view
                         if debug_show_all:
                             # Debug view: show door overlay
+                            base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
                             self._draw_door(base_draw, x_pix, y_pix, cell, state)
                             # Add red outline
                             base_draw.rectangle(
@@ -130,17 +130,21 @@ class DungeonRendererNeo:
                                 outline="red",
                                 width=2
                             )
+                        else:
+                            base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
+
                         # Continue to prevent double-rendering
                         continue
                     else:
                         # Discovered secret
+                        base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
                         self._draw_door(base_draw, x_pix, y_pix, cell, state)
                         if debug_show_all:
                             # Add red outline in debug mode
                             base_draw.rectangle(
                                 [x_pix, y_pix, x_pix+cs, y_pix+cs],
                                 outline="red",
-                                width=3
+                                width=2
                             )
                         # Continue to prevent double-rendering
                         continue
