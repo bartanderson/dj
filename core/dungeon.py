@@ -165,24 +165,6 @@ class DungeonSystem:
         
         return True, f"Moved {direction}", new_pos
 
-    def _is_blocked(self, x, y):
-        """Check if cell is blocked (wall or closed door)"""
-        cell = self.state.get_cell(x, y)
-        
-        # Always blocking
-        if cell.base_type & (self.BLOCKED | self.PERIMETER):
-            return True
-        
-        # Door handling
-        if cell.base_type & self.DOORSPACE:
-            # Portcullis isn't blocked
-            if cell.base_type & (self.ARCH | self.PORTC):
-                return False
-            # All other doors are blocked
-            return True
-        
-        return False
-
     def update_visibility(self):
         """Update visibility based on party position"""
         self.visibility_system.party_position = self.state.party_position

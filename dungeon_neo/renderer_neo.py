@@ -237,51 +237,6 @@ class DungeonRendererNeo:
             center_x + radius, center_y + radius
         ], fill="#FF0000")  # Red circle
 
-
-    def _draw_visible_cell(self, draw, x, y, cell, state):
-        """Draw a fully visible cell with comprehensive null checks"""
-        # Fail-safe: Return immediately if cell is invalid
-        if cell is None or not hasattr(cell, 'base_type'):
-            return
-        
-        size = self.cell_size
-        
-        try:
-            # Draw base cell using safe property access
-            if cell.is_room:
-                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['room'])
-            elif cell.is_corridor:
-                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['corridor'])
-            elif cell.is_blocked:
-                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['wall'])
-            elif cell.is_door:
-                draw.rectangle([x, y, x+size, y+size], fill=self.COLORS['corridor'])
-            
-            # Draw doors if present
-            if cell.is_door:
-                try:
-                    self._draw_door(draw, x, y, cell, state)
-                except Exception as e:
-                    print(f"Error drawing door at ({x},{y}): {str(e)}")
-            
-            # Draw stairs if present
-            if cell.is_stairs:
-                try:
-                    stair_type = 'up' if cell.is_stair_up else 'down'
-                    orientation = state.get_stair_orientation(cell.x, cell.y)
-                    self._draw_stairs(draw, x, y, stair_type, orientation)
-                except Exception as e:
-                    print(f"Error drawing stairs at ({x},{y}): {str(e)}")
-            
-            # Draw labels if present
-            if cell.has_label:
-                try:
-                    self._draw_label(draw, x, y, cell)
-                except Exception as e:
-                    print(f"Error drawing label at ({x},{y}): {str(e)}")
-        except Exception as e:
-            print(f"Critical error drawing cell at ({x},{y}): {str(e)}")
-
     def _draw_label(self, draw, x, y, cell):
         """Draw room label"""
         size = self.cell_size

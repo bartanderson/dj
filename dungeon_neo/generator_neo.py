@@ -803,14 +803,6 @@ class DungeonGeneratorNeo:
                 if self.cell[r][c] & self.BLOCKED:
                     self.cell[r][c] = self.NOTHING
 
-    def get_door_orientation(self, door_r, door_c, open_dir):
-        """Unified orientation based on physical layout"""
-        # Check actual passage direction
-        if open_dir in ['north', 'south']:
-            return 'horizontal'  # Spanning east-west
-        else:
-            return 'vertical'    # Spanning north-south
-
     def get_door_type(self, cell):
         if cell & ARCH:
             return 'arch'

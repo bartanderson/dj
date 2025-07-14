@@ -1,15 +1,18 @@
-from flask import Flask
+from flask import Flask, send_file
 from core.game_state import GameState
 from routes.api import api_bp
-from routes.views import views_bp
 
 def create_app():
     app = Flask(__name__)
     app.game_state = GameState()  # Single game state instance
     
     # Register blueprints
-    app.register_blueprint(views_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    # Add root route directly
+    @app.route('/')
+    def dungeon_view():
+        return send_file('templates\\dungeon.html')  # Serve HTML directly
     
     return app
 

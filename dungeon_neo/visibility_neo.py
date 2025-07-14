@@ -89,30 +89,6 @@ class VisibilitySystemNeo:
         # Update visibility sets
         self.visible = new_visible
         self.explored |= new_visible
-       
-    def is_visible_through(self, start_x, start_y, end_x, end_y):
-        """Check if path is unobstructed (Bresenham's line algorithm)"""
-        dx = abs(end_x - start_x)
-        dy = abs(end_y - start_y)
-        sx = 1 if start_x < end_x else -1
-        sy = 1 if start_y < end_y else -1
-        err = dx - dy
-        
-        x, y = start_x, start_y
-        while x != end_x or y != end_y:
-            # Stop if we hit a blocking cell before reaching target
-            if (x, y) != (start_x, start_y) and self._is_blocking(x, y):
-                return False
-                
-            e2 = 2 * err
-            if e2 > -dy:
-                err -= dy
-                x += sx
-            if e2 < dx:
-                err += dx
-                y += sy
-                
-        return True
 
     def is_visible(self, x, y):
         return self.visible[y][x]
