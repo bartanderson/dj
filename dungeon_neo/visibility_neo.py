@@ -35,7 +35,7 @@ class VisibilitySystemNeo:
         self.grid = grid
         self.party_position = party_position
         self.height = len(grid)
-        self.width = len(grid[0])
+        self.width = len(grid[0]) if grid else 0
         self.explored = set()  # Persistent exploration memory
         self.visible = set()   # Current visible cells
         self.update_visibility()
@@ -55,7 +55,7 @@ class VisibilitySystemNeo:
         self.update_visibility()
 
     def update_visibility(self):
-        if not hasattr(self, 'party_position'):
+        if not hasattr(self, 'party_position') or not self.party_position:
             return
         
         y0, x0 = self.party_position
@@ -83,7 +83,7 @@ class VisibilitySystemNeo:
                     new_visible.add((x, y))
                     
                 # Check if cell blocks vision
-                if self._is_blocking(x, y):
+                if self._is_blocking(y, x):  # Note: grid uses [y][x] indexing
                     clear_path = False
         
         # Update visibility sets
@@ -102,7 +102,7 @@ class VisibilitySystemNeo:
         # Comprehensive wall detection
         return (cell.is_blocked or 
                 cell.is_perimeter or
-                (cell.is_door and not (cell.is_arch or cell.is_portc)) or
+                (cell.is_door and not (cell.is_arch)) or
                 cell.base_type == self.NOTHING)
     
     def get_visibility(self, position):

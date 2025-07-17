@@ -3,6 +3,7 @@ from dungeon_neo.state_neo import DungeonStateNeo
 from dungeon_neo.generator_neo import DungeonGeneratorNeo
 from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
 from dungeon_neo.cell_neo import DungeonCellNeo
+from dungeon_neo.overlay import Overlay
 
 class DungeonRendererNeo:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -179,9 +180,37 @@ class DungeonRendererNeo:
                 if cell.has_label:
                     self._draw_label(base_draw, x_pix, y_pix, cell)
 
+                # Render entities as text overlays
+                for entity in cell.entities:
+                    # Create text overlay for entity
+                    overlay = Overlay(
+                        primitive="text",
+                        content=entity.get_symbol(),
+                        color=(255, 255, 255),
+                    )
+                    overlay.render(draw, x_pix, y_pix, cs)
+                
+                # Render other overlays
+                for overlay in cell.overlays:
+                    overlay.render(draw, x_pix, y_pix, cs)
                 
         # Draw grid on top of cells
         self._draw_grid(base_draw, width, height)
+
+        # In the _render_dungeon method, after drawing the base cell:
+        # Render entities as text overlays
+        for entity in cell.entities:
+            overlay = Overlay(
+                primitive="text",
+                content=entity.get_symbol(),
+                color=(255, 255, 255),
+                size=1.0
+            )
+            overlay.render(draw, y, x, self.cell_size)  # Note: x and y swapped
+
+        # Render other overlays
+        for overlay in cell.overlays:
+            overlay.render(draw, y, x, self.cell_size)  # Note: x and y swapped
 
         # Draw party icon last
         self._draw_party_icon(base_draw, party_y * cs, party_x * cs)
@@ -580,33 +609,6 @@ class DungeonRendererNeo:
         
         return composite
 
-    # def _draw_stair_icon(self, draw, x, y, size, stair_type, orientation):
-    #     """Draw stair icon for legend"""
-    #     color = self.COLORS['stairs_up'] if stair_type == 'up' else self.COLORS['stairs_down']
-    #     step_count = 5
-    #     spacing = size / (step_count + 1)
-    #     max_length = size * 0.7
-    #     step_color = (80, 80, 80)
-        
-    #     if orientation == 'horizontal':
-    #         center_y = y + size // 2
-    #         for i in range(1, step_count + 1):
-    #             length = max_length * (i / step_count) if stair_type == 'down' else max_length
-    #             x_pos = x + i * spacing
-    #             draw.line([
-    #                 x_pos, center_y - length//2,
-    #                 x_pos, center_y + length//2
-    #             ], fill=step_color, width=2)
-    #     else:
-    #         center_x = x + size // 2
-    #         for i in range(1, step_count + 1):
-    #             length = max_length * (i / step_count) if stair_type == 'down' else max_length
-    #             y_pos = y + i * spacing
-    #             draw.line([
-    #                 center_x - length//2, y_pos,
-    #                 center_x + length//2, y_pos
-    #             ], fill=step_color, width=2)
-
     def _draw_room(self, draw, x, y, size=None):
         """Draw room icon, works for both grid and legend"""
         if size is None:
@@ -618,3 +620,31 @@ class DungeonRendererNeo:
         if size is None:
             size = self.cell_size
         draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['corridor'])
+
+class EnhancedRenderer(DungeonRendererNeo):
+    def render_entity(self, draw, x, y, cs, entity):
+        """Render entity using overlay system instead of icons"""
+        # Skip direct icon rendering
+        pass
+
+    def render_cell(self, x, y, cell, state, debug=False):
+        super().render_cell(x, y, cell, state, debug)
+        cs = self.cell_size
+        x_pix = y * cs
+        y_pix = x * cs
+        
+        # Render entities as text overlays
+        for entity in cell.entities:
+            # Create text overlay for entity
+            overlay = Overlay(
+                primitive="text",
+                text=entity.get_symbol(),
+                color=(255, 255, 255),
+                size=1.0
+            )
+            overlay.render(self.draw, x_pix, y_pix, cs)
+        
+        # Render other overlays
+        for overlay in cell.overlays:
+            overlay.render(self.draw, x_pix, y_pix, cs)
+

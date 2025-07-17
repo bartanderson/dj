@@ -40,6 +40,9 @@ class DungeonCellNeo:
         self.discovered = False
         self.modifications = []
         self.temporary_effects = []
+        self.entities = []       # List of Entity objects
+        self.overlays = []       # List of Overlay objects
+        self.description = ""    # Text description of the cell
 
     @property
     def position(self):

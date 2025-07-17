@@ -66,6 +66,16 @@ class DungeonStateNeo:
                 stair.get('corridor_dy', 0)
             )
 
+        # Initialize visibility system
+        self.visibility_system = VisibilitySystemNeo(self.grid, self.party_position)
+
+        # Import at runtime to break circular dependency
+        from dungeon_neo.movement_service import MovementService
+
+        # Initialize movement service
+        self.movement = MovementService(self)
+
+
     @property
     def width(self):
         return self._width
@@ -81,6 +91,9 @@ class DungeonStateNeo:
     @party_position.setter
     def party_position(self, value):
         self._party_position = value
+        # Update visibility when position changes
+        self.visibility_system.party_position = value
+        self.visibility_system.update_visibility()
 
     def get_door_orientation(self, row, col):
         """Override for corridor doors not connected to rooms"""
@@ -158,39 +171,14 @@ class DungeonStateNeo:
                 valid_directions.append(direction)
                 
         return valid_directions
-            
-    def move_party(self, direction: str) -> Tuple[bool, str]:
-        if direction not in DIRECTION_VECTORS:
-            return False, f"Invalid direction: {direction}"
-            
-        dx, dy = DIRECTION_VECTORS[direction]
-        x, y = self.party_position
-        new_pos = (x + dx, y + dy)
-        
-        # Validate new position
-        if not self.is_valid_position(new_pos):
-            return False, "Invalid position"
-            
-        # Check if the new position is passable
-        new_x, new_y = new_pos
-        if not (0 <= new_x < self.height and 0 <= new_y < self.width):
-            return False, "Out of bounds"
-            
-        new_cell = self.grid[new_x][new_y]
-        if new_cell.is_blocked:
-            return False, "Blocked by obstacle"
-        
-        # Update position
-        self.party_position = new_pos
-        return True, f"Moved {direction}"
     
     def is_valid_position(self, pos):
+        """Check if position is valid and passable"""
         x, y = pos
         if x < 0 or x >= self.height or y < 0 or y >= self.width:
             return False
         cell = self.get_cell(x, y)
         return cell and not cell.is_blocked
-
     
     def get_cell(self, x: int, y: int):
         if 0 <= x < self.height and 0 <= y < self.width:
@@ -203,3 +191,13 @@ class DungeonStateNeo:
             self.secret_mask[y][x] = True
             return True
         return False
+
+    
+    def update_visibility_for_path(self, cells):
+        """Mark cells along the path as discovered"""
+        for (x, y) in cells:
+            # Add to explored set
+            self.visibility_system.explored.add((x, y))
+            
+            # Add to visible set for current position
+            self.visibility_system.visible.add((x, y))

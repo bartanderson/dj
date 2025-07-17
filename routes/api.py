@@ -1,20 +1,86 @@
 from flask import Blueprint, jsonify, current_app, send_file, request
 import io
+from dungeon_neo.constants import *
+from dungeon_neo.ai_integration import DungeonAI
+
 
 api_bp = Blueprint('api', __name__)
 
-@api_bp.route('/status')
-def status_check():
-    return jsonify({"status": "active"})
+@api_bp.route('/move', methods=['POST'])
+def handle_movement():
+    """Unified movement endpoint for all movement types"""
+    data = request.json
+    direction = data.get('direction')
+    steps = data.get('steps', 1)
+    
+    try:
+        game_state = current_app.game_state
+        result = game_state.dungeon.state.movement.move(direction, steps)
+        
+        if result["success"]:
+            game_state.dungeon.update_visibility()
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "message": f"Movement error: {str(e)}"
+        })
 
 @api_bp.route('/move/<direction>', methods=['POST'])
 def move_party(direction):
-    success, message, new_position = current_app.game_state.dungeon.move_party(direction)
-    return jsonify({
-        "success": success,
-        "message": message,
-        "new_position": new_position
-    })
+    try:
+        game_state = current_app.game_state
+        state = game_state.dungeon.state
+        
+        # Use the same move_party method as AI commands
+        success, message = state.move_party(direction, 1)
+        
+        if success:
+            game_state.dungeon.update_visibility()
+            return jsonify({
+                "success": True,
+                "message": message,
+                "new_position": state.party_position
+            })
+        return jsonify({"success": False, "message": message})
+    
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "message": f"Movement error: {str(e)}"
+        })
+
+@api_bp.route('/ai-command', methods=['POST'])
+def handle_ai_command():
+    data = request.json
+    command = data.get('command', '')
+    
+    try:
+        game_state = current_app.game_state
+        state = game_state.dungeon.state
+        
+        # Directly handle movement commands
+        if command.lower().startswith(('move', 'go', 'walk', 'head')):
+            # Parse direction and steps
+            parts = command.split()
+            direction = parts[1] if len(parts) > 1 else None
+            steps = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            
+            if direction and direction in DIRECTION_VECTORS:
+                result = state.movement.move(direction, steps)
+                if result["success"]:
+                    game_state.dungeon.update_visibility()
+                return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()  # Add this to see detailed error
+        return jsonify({
+            "success": False,
+            "message": f"AI processing error: {str(e)}"
+        })
 
 @api_bp.route('/debug-state')
 def debug_state():
