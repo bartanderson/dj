@@ -1,11 +1,10 @@
 from typing import List, Dict, Any, Tuple, Optional, Union
-from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS
+from dungeon_neo.grid_system import GridSystem
+from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS_8
 from dungeon_neo.cell_neo import DungeonCellNeo
 from dungeon_neo.visibility_neo import VisibilitySystemNeo
-from dungeon_neo.generator_neo import DungeonGeneratorNeo
 
 class DungeonStateNeo:
-
     NOTHING = CELL_FLAGS['NOTHING']
     BLOCKED = CELL_FLAGS['BLOCKED']
     ROOM = CELL_FLAGS['ROOM']
@@ -26,63 +25,57 @@ class DungeonStateNeo:
     def __init__(self, generator_result):
         self.n_cols = generator_result['n_cols']
         self.n_rows = generator_result['n_rows']
-        # Convert grid with strict dimension enforcement
-        self.grid = self._convert_grid(
-            generator_result['grid'], 
-            self.n_rows, 
-            self.n_cols
+        
+        # Create grid system with proper dimensions
+        self.grid_system = GridSystem(
+            width=self.n_cols + 1,
+            height=self.n_rows + 1
         )
-
-        self.stairs = generator_result['stairs']
-        self.doors = generator_result.get('doors', [])
-        self.rooms = generator_result.get('rooms', [])
-
+        self._populate_grid(generator_result['grid'])
         
-        # Set dimensions based on actual grid size
-        self._height = len(self.grid)
-        self._width = len(self.grid[0]) if self.grid else 0
-        
-        # Initialize party position to (0, 0) as placeholder
-        self._party_position = (0, 0)
-
-        # Create orientation lookup dictionaries
+        # Create orientation lookups
         self.door_orientations = {}
-        for door in self.doors:
-            pos = (door['row'], door['col'])
-            self.door_orientations[pos] = door['orientation']
-
+        for door in generator_result.get('doors', []):
+            x, y = door['col'], door['row']
+            self.door_orientations[(x, y)] = door['orientation']
+        
         self.stair_orientations = {}
+        self.stairs = generator_result.get('stairs', [])
         for stair in self.stairs:
-            pos = (stair['row'], stair['col'])
-            self.stair_orientations[pos] = stair['orientation'] # stair.get('orientation', 'horizontal')
+            x, y = stair['col'], stair['row']
+            self.stair_orientations[(x, y)] = stair.get('orientation', 'horizontal')
+        
         # Initialize secret mask
-        self.secret_mask = [[False] * self.width for _ in range(self.height)]
-        # Corridor directions for initial placement
-        self.stair_corridor_dirs = {}
-        for stair in self.stairs:
-            pos = (stair['row'], stair['col'])
-            self.stair_corridor_dirs[pos] = (
-                stair.get('corridor_dx', 0),
-                stair.get('corridor_dy', 0)
-            )
-
+        self.secret_mask = [[False] * self.grid_system.width for _ in range(self.grid_system.height)]
+        
+        # Initialize party position
+        self._party_position = (0, 0)
+        
         # Initialize visibility system
-        self.visibility_system = VisibilitySystemNeo(self.grid, self.party_position)
-
-        # Import at runtime to break circular dependency
-        from dungeon_neo.movement_service import MovementService
-
+        self.visibility_system = VisibilitySystemNeo(self.grid_system, self.party_position)
+        
         # Initialize movement service
+        from dungeon_neo.movement_service import MovementService
         self.movement = MovementService(self)
 
+    def _populate_grid(self, generator_grid):
+        """Populate grid with DungeonCellNeo objects"""
+        for y in range(self.grid_system.height):
+            for x in range(self.grid_system.width):
+                try:
+                    value = generator_grid[y][x]
+                except (IndexError, TypeError):
+                    value = CELL_FLAGS['NOTHING']
+                cell = DungeonCellNeo(value, x, y)
+                self.grid_system.set_cell(x, y, cell)
 
     @property
     def width(self):
-        return self._width
+        return self.grid_system.width
 
     @property
     def height(self):
-        return self._height
+        return self.grid_system.height
 
     @property
     def party_position(self):
@@ -91,113 +84,25 @@ class DungeonStateNeo:
     @party_position.setter
     def party_position(self, value):
         self._party_position = value
-        # Update visibility when position changes
         self.visibility_system.party_position = value
-        self.visibility_system.update_visibility()
 
-    def get_door_orientation(self, row, col):
-        """Override for corridor doors not connected to rooms"""
-        cell = self.get_cell(row, col)
-        
-        # Check if door is between two corridors
-        east = self.get_cell(row, col+1)
-        west = self.get_cell(row, col-1)
-        north = self.get_cell(row-1, col)
-        south = self.get_cell(row+1, col)
-        
-        # Determine corridor direction
-        if (east and east.is_corridor and 
-            west and west.is_corridor and
-            not (north and north.is_corridor) and
-            not (south and south.is_corridor)):
-            # Between east-west corridors → vertical door
-            return 'vertical'
-            
-        if (north and north.is_corridor and 
-            south and south.is_corridor and
-            not (east and east.is_corridor) and
-            not (west and west.is_corridor)):
-            # Between north-south corridors → horizontal door
-            return 'horizontal'
-        
-        # Default to generator's orientation
-        return self.door_orientations.get((row, col), 'horizontal')
-
-    def get_stair_orientation(self, row, col):
-        return self.stair_orientations.get((row, col), 'horizontal')
-
-        
-    def _convert_grid(self, generator_grid, num_rows, num_cols):
-        """Convert grid to DungeonCellNeo objects with comprehensive validation"""
-        grid = []
-        for x in range(num_rows + 1):
-            row = []
-            for y in range(num_cols + 1):
-                # Get value with fallback
-                try:
-                    value = generator_grid[x][y]
-                except (IndexError, TypeError):
-                    value = CELL_FLAGS['NOTHING']
-                
-                # Create cell with validated value
-                cell = DungeonCellNeo(value, x, y)
-                
-                # Log conversion if needed
-                if not isinstance(value, int):
-                    print(f"Converted cell ({x},{y}) from {type(value)} to int: {cell.base_type}")
-                
-                row.append(cell)
-            grid.append(row)
-        return grid
-
-
-    def get_valid_moves(self, position=None):
-        """Get list of valid move directions from current position"""
-        if position is None:
-            position = self.party_position
-            
-        valid_directions = []
-        for direction, (dx, dy) in DIRECTION_VECTORS.items():
-            new_pos = (position[0] + dx, position[1] + dy)
-            
-            # Check bounds
-            if not (0 <= new_pos[0] < self.height and 
-                    0 <= new_pos[1] < self.width):
-                continue
-                
-            # Check passability
-            cell = self.grid[new_pos[0]][new_pos[1]]
-            if not cell.is_blocked:
-                valid_directions.append(direction)
-                
-        return valid_directions
-    
-    def is_valid_position(self, pos):
-        """Check if position is valid and passable"""
-        x, y = pos
-        if x < 0 or x >= self.height or y < 0 or y >= self.width:
-            return False
-        cell = self.get_cell(x, y)
-        return cell and not cell.is_blocked
-    
     def get_cell(self, x: int, y: int):
-        if 0 <= x < self.height and 0 <= y < self.width:
-            return self.grid[x][y]
-        return None
-
-    def reveal_secret(self, x, y):
-        """Mark a secret door as discovered"""
-        if 0 <= x < self.width and 0 <= y < self.height:
+        return self.grid_system.get_cell(x, y)
+    
+    def get_door_orientation(self, x: int, y: int):
+        return self.door_orientations.get((x, y), 'horizontal')
+    
+    def get_stair_orientation(self, x: int, y: int):
+        return self.stair_orientations.get((x, y), 'horizontal')
+    
+    def reveal_secret(self, x: int, y: int):
+        if self.grid_system.is_valid_position(x, y):
             self.secret_mask[y][x] = True
             return True
         return False
-
     
-    def update_visibility_for_path(self, cells):
-        """Mark cells along the path as discovered"""
-        for (x, y) in cells:
-            # Add to explored set
-            self.visibility_system.explored.add((x, y))
-            
-            # Add to visible set for current position
-            self.visibility_system.visible.add((x, y))
+    def update_visibility_for_path(self, path_cells: list):
+        """Update visibility for a path of cells"""
+        for (x, y) in path_cells:
+            self.visibility_system.mark_explored(x, y)
+        self.visibility_system.update_visibility()

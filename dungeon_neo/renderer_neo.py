@@ -105,15 +105,13 @@ class DungeonRendererNeo:
         # Draw cells with visibility handling
         for y in range(state.height):
             for x in range(state.width):
-                cell = state.grid[y][x]
+                cell = state.get_cell(x, y)
+                x_pix, y_pix = state.grid_system.world_to_pixel(x, y, self.cell_size)
 
-                is_explored = visibility_system and visibility_system.is_explored(y, x)
+                is_explored = visibility_system and visibility_system.is_explored(x, y)
                 
                 if is_explored:
                     explored_count += 1
-
-                x_pix = x * cs
-                y_pix = y * cs
                 
                 # Handle secrets first - always as walls if not discovered
                 if cell.is_secret:

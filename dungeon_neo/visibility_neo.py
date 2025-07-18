@@ -1,9 +1,5 @@
-from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
+from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS_8
 import math
-
-DIRECTION_VECTORS_8 = {
-'n': (-1, 0), 's': (1, 0), 'e': (0, 1), 'w': (0, -1),
-'ne': (-1, 1), 'nw': (-1, -1), 'se': (1, 1), 'sw': (1, -1)}
 
 class VisibilitySystemNeo:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -31,86 +27,63 @@ class VisibilitySystemNeo:
     BLOCK_CORR = CELL_FLAGS['BLOCK_CORR']
     BLOCK_DOOR = CELL_FLAGS['BLOCK_DOOR']
 
-    def __init__(self, grid, party_position):
-        self.grid = grid
+    def __init__(self, grid_system, party_position):
+        self.grid_system = grid_system
         self.party_position = party_position
-        self.height = len(grid)
-        self.width = len(grid[0]) if grid else 0
-        self.explored = set()  # Persistent exploration memory
-        self.visible = set()   # Current visible cells
+        self.explored = set()  # Cells that have been seen
+        self.visible = set()   # Cells currently visible
         self.update_visibility()
-
-    @property
-    def reveal_all(self):
-        return self._reveal_all
-
-    @reveal_all.setter
-    def reveal_all(self, value):
-        self._reveal_all = value
-        self.update_visibility()
-        
     
-    def set_reveal_all(self, reveal: bool):
-        self.reveal_all = reveal
-        self.update_visibility()
-
+    def mark_explored(self, x: int, y: int):
+        """Mark a cell as explored (persistent memory)"""
+        if self.grid_system.is_valid_position(x, y):
+            self.explored.add((x, y))
+    
     def update_visibility(self):
-        if not hasattr(self, 'party_position') or not self.party_position:
+        """Update currently visible cells from party position"""
+        if not self.party_position:
             return
         
-        y0, x0 = self.party_position
+        x0, y0 = self.party_position
         new_visible = set()
-        
-        # Always see current cell
         new_visible.add((x0, y0))
         
-        # Check in 8 directions
-        for dir, (dr, dc) in DIRECTION_VECTORS_8.items():
+        # Cast rays in 8 directions
+        for (dx, dy) in DIRECTION_VECTORS_8.values():
             x, y = x0, y0
             clear_path = True
             
-            # Check up to 2 steps in each direction
-            for distance in range(1, 3):
-                x += dr
-                y += dc
+            for distance in range(1, 6):  # 5 cell view distance
+                x += dx
+                y += dy
                 
-                # Stop at boundaries
-                if not (0 <= x < self.height and 0 <= y < self.width):
+                if not self.grid_system.is_valid_position(x, y):
                     break
                     
-                # Add cell if path is clear
                 if clear_path:
                     new_visible.add((x, y))
                     
-                # Check if cell blocks vision
-                if self._is_blocking(y, x):  # Note: grid uses [y][x] indexing
+                if self._is_blocking(x, y):
                     clear_path = False
         
-        # Update visibility sets
         self.visible = new_visible
+        # Mark visible cells as explored
         self.explored |= new_visible
-
-    def is_visible(self, x, y):
-        return self.visible[y][x]
-        
-    def is_explored(self, x, y):
-        """Check if cell is explored (no fog)"""
-        return (x, y) in self.explored  # Check set membership
-
-    def _is_blocking(self, x, y):
-        cell = self.grid[y][x]
-        # Comprehensive wall detection
+    
+    def _is_blocking(self, x: int, y: int) -> bool:
+        cell = self.grid_system.get_cell(x, y)
+        if not cell:
+            return True
+            
         return (cell.is_blocked or 
                 cell.is_perimeter or
-                (cell.is_door and not (cell.is_arch)) or
-                cell.base_type == self.NOTHING)
+                (cell.is_door and not cell.is_arch) or
+                cell.base_type == CELL_FLAGS['NOTHING'])
     
-    def get_visibility(self, position):
-        """Get visibility status of a cell"""
-        x, y = position
-        if self.visible[y][x]:
-            return "visible"
-        elif self.explored[y][x]:
-            return "explored"
-        else:
-            return "unexplored"
+    def is_visible(self, x: int, y: int) -> bool:
+        """Check if cell is currently visible"""
+        return (x, y) in self.visible
+        
+    def is_explored(self, x: int, y: int) -> bool:
+        """Check if cell has been explored (seen before)"""
+        return (x, y) in self.explored

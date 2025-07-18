@@ -63,12 +63,11 @@ class DungeonSystem:
         # Set initial party position
         self._set_initial_party_position()
         
-        # Initialize visibility system
-        self.visibility_system = VisibilitySystemNeo(
-            self.state.grid, 
-            self.state.party_position
-        )
-        #print(f"Visibility system initialized at: {self.state.party_position}")
+        # REMOVED: No need to manually create visibility system
+        # It's now created within DungeonStateNeo
+        
+        print(f"Generated dungeon: {self.state.width}x{self.state.height}")
+        print(f"Initial party position: {self.state.party_position}")
 
     def _set_initial_party_position(self):
         """Set initial party position near first up stair"""

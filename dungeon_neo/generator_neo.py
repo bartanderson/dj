@@ -168,6 +168,7 @@ class DungeonGeneratorNeo:
             self.emplace_stairs()
                 
         self.clean_dungeon()
+        
         # Before returning, ensure all grid values are integers
         for x in range(len(self.cell)):
             for y in range(len(self.cell[x])):
@@ -175,10 +176,32 @@ class DungeonGeneratorNeo:
                     print(f"Non-int value at ({x},{y}): {self.cell[x][y]} - converting to NOTHING")
                     self.cell[x][y] = self.NOTHING
         
+        # Prepare stairs and doors in world coordinates
+        stairs = []
+        for stair in self.stairList:
+            stairs.append({
+                'row': stair['row'], 
+                'col': stair['col'],
+                'key': stair['key'],
+                'orientation': stair.get('orientation', 'horizontal'),
+                'dx': stair.get('dx', 0),
+                'dy': stair.get('dy', 0)
+            })
+        
+        doors = []
+        for door in self.doorList:
+            doors.append({
+                'row': door['row'],
+                'col': door['col'],
+                'orientation': door.get('orientation', 'horizontal'),
+                'key': door.get('key', 'door'),
+                'out_id': door.get('out_id')
+            })
+        
         return {
             'grid': self.cell,
-            'stairs': self.stairList,
-            'doors': self.doorList,
+            'stairs': stairs,
+            'doors': doors,
             'rooms': self.room,
             'n_rows': self.opts['n_rows'],
             'n_cols': self.opts['n_cols']
