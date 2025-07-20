@@ -61,22 +61,19 @@ def handle_ai_command():
         game_state = current_app.game_state
         state = game_state.dungeon.state
         
-        # Directly handle movement commands
-        if command.lower().startswith(('move', 'go', 'walk', 'head')):
-            # Parse direction and steps
-            parts = command.split()
-            direction = parts[1] if len(parts) > 1 else None
-            steps = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+        # Use AI for all commands - simpler and more robust
+        ai = DungeonAI(state)
+        result = ai.process_command(command)
+        
+        # Update visibility if movement occurred
+        if result.get('success') and 'MOVE' in result.get('message', ''):
+            game_state.dungeon.update_visibility()
             
-            if direction and direction in DIRECTION_VECTORS:
-                result = state.movement.move(direction, steps)
-                if result["success"]:
-                    game_state.dungeon.update_visibility()
-                return jsonify(result)
+        return jsonify(result)
         
     except Exception as e:
         import traceback
-        traceback.print_exc()  # Add this to see detailed error
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "message": f"AI processing error: {str(e)}"
