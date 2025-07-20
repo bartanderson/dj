@@ -40,35 +40,62 @@ class VisibilitySystemNeo:
             self.explored.add((x, y))
     
     def update_visibility(self):
-        """Update currently visible cells from party position"""
         if not self.party_position:
             return
         
         x0, y0 = self.party_position
         new_visible = set()
-        new_visible.add((x0, y0))
+        new_visible.add((x0, y0))  # Always visible
         
-        # Cast rays in 8 directions
-        for (dx, dy) in DIRECTION_VECTORS_8.values():
-            x, y = x0, y0
-            clear_path = True
-            
-            for distance in range(1, 6):  # 5 cell view distance
-                x += dx
-                y += dy
-                
+        # Diamond-shaped visibility (Manhattan distance <= 2)
+        for dx in range(-2, 2):
+            for dy in range(-2, 2):
+                if abs(dx) + abs(dy) > 4:  # Skip corners
+                    continue
+                    
+                x, y = x0 + dx, y0 + dy
                 if not self.grid_system.is_valid_position(x, y):
-                    break
-                    
-                if clear_path:
+                    continue
+                
+                # Line-of-sight check
+                visible = True
+                line = self._get_line(x0, y0, x, y)
+                for i in range(1, len(line)):
+                    cx, cy = line[i]
+                    if (cx, cy) == (x, y):
+                        break
+                    if self._is_blocking(cx, cy):
+                        visible = False
+                        break
+                        
+                if visible:
                     new_visible.add((x, y))
-                    
-                if self._is_blocking(x, y):
-                    clear_path = False
         
         self.visible = new_visible
-        # Mark visible cells as explored
         self.explored |= new_visible
+
+    def _get_line(self, x0, y0, x1, y1):
+        """Bresenham's line algorithm"""
+        points = []
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx - dy
+        
+        while True:
+            points.append((x0, y0))
+            if x0 == x1 and y0 == y1:
+                break
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x0 += sx
+            if e2 < dx:
+                err += dx
+                y0 += sy
+        
+        return points
     
     def _is_blocking(self, x: int, y: int) -> bool:
         cell = self.grid_system.get_cell(x, y)

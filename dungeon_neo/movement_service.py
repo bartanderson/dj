@@ -15,11 +15,19 @@ class MovementService:
         for step in range(steps):
             new_x, new_y = x + dx, y + dy
             
+            # Validate next cell
             if not self.is_passable(new_x, new_y):
                 cell_type = self.get_cell_type(new_x, new_y)
                 messages.append(f"Blocked by {cell_type} at ({new_x}, {new_y})")
                 break
                 
+            # Validate diagonal paths
+            if direction in ['northeast', 'northwest', 'southeast', 'southwest']:
+                if not (self.is_passable(x + dx, y) and self.is_passable(x, y + dy)):
+                    messages.append(f"Diagonal path blocked to ({new_x}, {new_y})")
+                    break
+            
+            # Move to next cell
             x, y = new_x, new_y
             actual_steps += 1
             path_cells.append((x, y))
