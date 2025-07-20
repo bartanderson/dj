@@ -3,6 +3,7 @@ from dungeon_neo.state_neo import DungeonStateNeo
 from dungeon_neo.renderer_neo import DungeonRendererNeo
 from dungeon_neo.visibility_neo import VisibilitySystemNeo
 from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
+from dungeon_neo.movement_service import MovementService
 
 class DungeonSystem:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -60,11 +61,20 @@ class DungeonSystem:
         # Create state from generator result
         self.state = DungeonStateNeo(generator_result)
         
-        # Set initial party position
+        # Set final party position FIRST
         self._set_initial_party_position()
         
-        # REMOVED: No need to manually create visibility system
-        # It's now created within DungeonStateNeo
+        # THEN create visibility system with actual position
+        self.state.visibility_system = VisibilitySystemNeo(
+            self.state.grid_system, 
+            self.state.party_position
+        )
+        
+        # Update visibility immediately
+        self.state.visibility_system.update_visibility()
+        
+        # Finally create movement service
+        self.state.movement = MovementService(self.state)
         
         print(f"Generated dungeon: {self.state.width}x{self.state.height}")
         print(f"Initial party position: {self.state.party_position}")
@@ -96,7 +106,7 @@ class DungeonSystem:
             dx = -stair['dx']
             dy = -stair['dy']
             
-            # Place party in approach corridor
+            # Place party in approach corridor and swap x and y so that position is correct
             party_x = stair_x - dx
             party_y = stair_y - dy
             
@@ -124,6 +134,7 @@ class DungeonSystem:
         
         # Calculate new position
         new_pos = (x + dx, y + dy)
+        print(f"move_party {new_pos}")
         
         # Check if move is valid
         if not self.state.is_valid_position(new_pos):
@@ -151,6 +162,7 @@ class DungeonSystem:
         
         # Update position in state
         self.state.party_position = new_pos
+        self.update_visibility()
         
         # Update visibility system
         self.visibility_system.party_position = new_pos
@@ -165,16 +177,17 @@ class DungeonSystem:
         return True, f"Moved {direction}", new_pos
 
     def update_visibility(self):
-        """Update visibility based on party position"""
-        self.visibility_system.party_position = self.state.party_position
-        self.visibility_system.update_visibility()
+        """Update visibility after position changes"""
+        if self.state and self.state.visibility_system:
+            self.state.visibility_system.party_position = self.state.party_position
+            self.state.visibility_system.update_visibility()
     
     def get_image(self, debug=False):
         # Simply pass the state directly to the renderer
         return self.renderer.render(
             self.state, 
             debug_show_all=debug,
-            visibility_system=self.visibility_system
+            visibility_system=self.state.visibility_system
         )
     
     def get_current_room_description(self): # maybe we can integrate AI later
