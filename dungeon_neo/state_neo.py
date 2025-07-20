@@ -52,11 +52,8 @@ class DungeonStateNeo:
         self._party_position = (0, 0)
         
         # Initialize visibility system
-        self.visibility_system = VisibilitySystemNeo(self.grid_system, self.party_position)
-        
-        # Initialize movement service
-        from dungeon_neo.movement_service import MovementService
-        self.movement = MovementService(self)
+        self.visibility_system = None # Will be set later
+        self.movement = None # Will be set later
 
     def _populate_grid(self, generator_grid):
         """Populate grid with DungeonCellNeo objects"""
@@ -84,7 +81,9 @@ class DungeonStateNeo:
     @party_position.setter
     def party_position(self, value):
         self._party_position = value
-        self.visibility_system.party_position = value
+        # Only update visibility if it exists
+        if hasattr(self, 'visibility_system') and self.visibility_system:
+            self.visibility_system.party_position = value
 
     def get_cell(self, x: int, y: int):
         return self.grid_system.get_cell(x, y)
