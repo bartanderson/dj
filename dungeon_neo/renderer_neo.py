@@ -96,7 +96,7 @@ class DungeonRendererNeo:
         ], fill="red")
 
         print(f"Rendering dungeon at size {width}x{height}")
-        print(f"Party position: {state.party_position}")
+        print(f"Party position why is it coming out x/y flipped here?: {state.party_position}")
 
         explored_count = 0
 
@@ -230,7 +230,7 @@ class DungeonRendererNeo:
                         myexplored_count += 1
                         # Make this cell transparent in fog layer
                         fog_draw.rectangle(
-                            [x*cs, y*cs, (x+1)*cs, (y+1)*cs],
+                            [y*cs, x*cs, (y+1)*cs, (x+1)*cs], # swapping x and y because it needs to be but I wish I knew why it needed to be here
                             fill=(0, 0, 0, 0)  # Fully transparent
                         )
             # this proves I can cut a hole in the fog, but need to fix above so that there are positions to cut
