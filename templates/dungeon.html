@@ -331,6 +331,10 @@
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
+                // Add this check to ignore when focused on input/textarea
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
                 const key = e.key.toLowerCase();
                 const mapping = {
                     'w': 'north',

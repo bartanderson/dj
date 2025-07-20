@@ -1,6 +1,9 @@
 class DMTools:
     def __init__(self, state):
         self.state = state
+
+    def move_party(self, direction, steps=1):
+        return self.state.movement.move(direction, steps)
     
     def set_property(self, x, y, prop, value):
         cell = self.state.get_cell(x, y)
