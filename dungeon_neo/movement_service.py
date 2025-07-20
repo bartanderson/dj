@@ -80,7 +80,7 @@ class MovementService:
         if not cell:
             return "void"
             
-        if cell.is_blocked: return "wall"
+        if cell.is_blocked: return "blocked"
         if cell.is_perimeter: return "perimeter"
         if cell.is_room: return "room"
         if cell.is_corridor: return "corridor"
@@ -89,4 +89,5 @@ class MovementService:
             if cell.is_portc: return "portcullis"
             return "door"
         if cell.is_stairs: return "stairs"
+        if cell.is_secret: return "blocked" # don't give it away, may have to refine handling later
         return "unknown"

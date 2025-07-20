@@ -34,7 +34,7 @@ class DungeonRendererNeo:
     COLORS = {
         'room': (255, 255, 255),
         'corridor': (200, 200, 200),
-        'wall': (52, 73, 94),       # seems like we were using background for walls, so just set it for when I was using wall
+        'blocked': (52, 73, 94),    # blocked
         'door': (101, 67, 33),      # Darker brown
         'arch': (160, 120, 40),     # Light brown
         'secret': (101, 67, 33),    # Darker brown
@@ -44,7 +44,6 @@ class DungeonRendererNeo:
         'stairs_up': (10, 10, 10),
         'stairs_down': (10, 10, 10),
         'grid': (100, 100, 100),
-        'background': (52, 73, 94),
         'explored': (100, 100, 100),
         'legend_bg': (25, 25, 25),
         'legend_text': (255, 255, 255)
@@ -81,7 +80,7 @@ class DungeonRendererNeo:
     def _render_dungeon(self, state: DungeonStateNeo, debug_show_all=False, visibility_system=None):
         width = state.width * self.cell_size
         height = state.height * self.cell_size
-        base_img = Image.new('RGB', (width, height), self.COLORS['background'])
+        base_img = Image.new('RGB', (width, height), self.COLORS['blocked'])
         base_draw = ImageDraw.Draw(base_img)
         cs = self.cell_size
         
@@ -113,9 +112,8 @@ class DungeonRendererNeo:
                 if is_explored:
                     explored_count += 1
                 
-                # Handle secrets first - always as walls if not discovered
+                # Handle secrets first
                 if cell.is_secret:
-                    # Always start with wall background
                     
                     if not state.secret_mask[y][x]:
                         # Undiscovered secret - normal view
@@ -130,7 +128,7 @@ class DungeonRendererNeo:
                                 width=2
                             )
                         else:
-                            base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
+                            base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['blocked'])
 
                         # Continue to prevent double-rendering
                         continue
@@ -157,7 +155,7 @@ class DungeonRendererNeo:
                 elif cell.is_corridor:
                     base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
                 elif cell.is_blocked:
-                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['wall'])
+                    base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['blocked'])
                 elif cell.is_door:
                     # Draw door space as corridor base
                     base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
@@ -288,7 +286,7 @@ class DungeonRendererNeo:
         y_pixel = x * self.cell_size
             
         if cell.base_type & self.BLOCKED:
-            self._draw_wall(draw, x_pixel, y_pixel)
+            self._draw_block(draw, x_pixel, y_pixel)
         elif cell.base_type & self.ROOM:
             self._draw_room(draw, x_pixel, y_pixel)
         elif cell.base_type & self.CORRIDOR:
@@ -300,11 +298,11 @@ class DungeonRendererNeo:
             stair = stair_dict.get((x, y))
             self._draw_stairs(draw, x_pixel, y_pixel, cell, stair)
     
-    def _draw_wall(self, draw, x, y, size=None):
-        """Draw wall icon for legend"""
+    def _draw_block(self, draw, x, y, size=None):
+        """Draw block icon for legend"""
         if size is None:
             size = self.cell_size
-        draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['wall'])
+        draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['blocked'])
     
     def _draw_room(self, draw, x, y):
         draw.rectangle([
@@ -547,10 +545,10 @@ class DungeonRendererNeo:
                 self._draw_door(draw, margin, margin, mock_cell, mock_state, cell_size)
             elif element == 'secret':
                 # Normal secret door
-                self._draw_wall(draw, margin, margin, cell_size)
+                self._draw_block(draw, margin, margin, cell_size)
             elif element == 'secret_debug':
                 # Debug secret door
-                self._draw_wall(draw, margin, margin, cell_size)
+                self._draw_block(draw, margin, margin, cell_size)
                 mock_cell = type('MockCell', (object,), {
                     'is_arch': element == 'arch',
                     'is_door_unlocked': element == 'door',
