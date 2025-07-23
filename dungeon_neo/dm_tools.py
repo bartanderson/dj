@@ -1,20 +1,55 @@
+from .tool_system import tool
+import random
+
 class DMTools:
     def __init__(self, state):
         self.state = state
 
-    def move_party(self, direction, steps=1):
+    @tool(
+        name="move_party",
+        description="Move the player party in a direction",
+        direction="Direction to move (north, south, east, west, northeast, etc.)",
+        steps="Number of steps (default=1)"
+    )
+    def move_party(self, direction: str, steps: int = 1) -> dict:
+        """Move party with proper validation"""
         return self.state.movement.move(direction, steps)
     
     def set_property(self, x, y, prop, value):
         cell = self.state.get_cell(x, y)
         if cell: cell.properties[prop] = value
-    
-    def add_entity(self, x, y, entity_type, **kwargs):
+
+    @tool(
+        name="add_entity",
+        description="Add an entity to a dungeon cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        entity_type="Type of entity (npc, monster, item, trap, portal, chest, etc.)"
+    )
+    def add_entity(self, x: int, y: int, entity_type: str) -> dict:
+        """Add entity to specified cell"""
         cell = self.state.get_cell(x, y)
-        if cell: cell.entities.append(Entity(entity_type, **kwargs))
+        if not cell:
+            return {"success": False, "message": "Invalid coordinates"}
+        
+        cell.entities.append(Entity(entity_type))
+        return {"success": True, "message": f"Added {entity_type} at ({x}, {y})"}
     
-    def describe_cell(self, x, y, text):
-        self.set_property(x, y, "description", text)
+    @tool(
+        name="describe_cell",
+        description="Add a text description to a dungeon cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        text="Description text"
+    )
+    def describe_cell(self, x: int, y: int, text: str) -> dict:
+        """Add description to cell"""
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return {"success": False, "message": "Invalid coordinates"}
+        
+        cell.description = text
+        return {"success": True, "message": f"Added description to ({x}, {y})"}
 
     def add_overlay(self, x, y, primitive, **params):
         cell = self.state.get_cell(x, y)
@@ -31,71 +66,90 @@ class DMTools:
         cell.overlays.append(Overlay(primitive, **params))
         return {"success": True, "message": f"Added {primitive} overlay"}
     
-    def _add_blood_overlay(self, cell, params):
-        size = params.get("size", 1.0)
-        intensity = min(5, max(1, params.get("intensity", 3)))
-        
-        # Blood stain effect
-        cell.overlays.append(Overlay("circle", 
-            color=(150, 0, 0), 
-            size=size * 0.8
-        ))
-        
-        # Spatter effect based on intensity
-        for _ in range(intensity * 2):
-            cell.overlays.append(Overlay("circle", 
-                color=(180, 10, 10), 
-                size=size * random.uniform(0.1, 0.3),
-                offset=(
-                    random.uniform(-0.4, 0.4),
-                    random.uniform(-0.4, 0.4)
-                )
-            ))
-        
-        return {"success": True, "message": "Added blood effect"}
+    @tool(
+        name="add_blood_effect",
+        description="Add a blood stain effect to a cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        size="Size of the effect (0.1-2.0)",
+        intensity="Intensity of the effect (1-5)"
+    )
+    def add_blood_effect(self, x: int, y: int, size: float = 1.0, intensity: int = 3) -> dict:
+        """Add blood effect to cell"""
+        return self.add_overlay(x, y, "blood", size=size, intensity=intensity)
     
-    def _add_glow_overlay(self, cell, params):
-        color = self._parse_color(params.get("color", "yellow"))
-        intensity = min(10, max(1, params.get("intensity", 5)))
-        
-        # Add multiple concentric circles for glow effect
-        for i in range(intensity):
-            alpha = 150 - (i * 10)
-            size = 1.0 + (i * 0.1)
-            cell.overlays.append(Overlay("circle", 
-                color=(*color, alpha),
-                size=size
-            ))
+    @tool(
+        name="add_glow_effect",
+        description="Add a glowing aura effect to a cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        color="Color name or hex value",
+        intensity="Intensity of the glow (1-10)"
+    )
+    def add_glow_effect(self, x: int, y: int, color: str = "yellow", intensity: int = 5) -> dict:
+        """Add glow effect to cell"""
+        return self.add_overlay(x, y, "glow", color=color, intensity=intensity)
         
         return {"success": True, "message": "Added glow effect"}
-    
-    def _parse_color(self, color_input):
-        """Convert color name or hex to RGB tuple"""
-        if isinstance(color_input, tuple):
-            return color_input
-        
-        colors = {
-            "red": (255, 0, 0),
-            "green": (0, 255, 0),
-            "blue": (0, 0, 255),
-            "yellow": (255, 255, 0),
-            "purple": (128, 0, 128),
-            "blood": (150, 0, 0),
-            "poison": (0, 150, 0),
-            "arcane": (100, 0, 200),
+
+    @tool(
+        name="get_debug_grid",
+        description="Get a text-based debug view of the dungeon"
+    )
+    def get_debug_grid(self) -> dict:
+        """Get debug grid view"""
+        grid = self.state.get_debug_grid()
+        grid_str = "\n".join(grid)
+        return {
+            "success": True,
+            "message": f"Debug Grid:\n{grid_str}",
+            "grid": grid
         }
+    
+    @tool(
+        name="reveal_secret",
+        description="Reveal a secret door or passage",
+        x="X coordinate (number)",
+        y="Y coordinate (number)"
+    )
+    def reveal_secret(self, x: int, y: int) -> dict:
+        """Reveal a secret at specified position"""
+        success = self.state.reveal_secret(x, y)
+        if success:
+            return {"success": True, "message": f"Revealed secret at ({x}, {y})"}
+        return {"success": False, "message": f"No secret found at ({x}, {y})"}
+    
+    @tool(
+        name="reset_dungeon",
+        description="Generate a new dungeon"
+    )
+    def reset_dungeon(self) -> dict:
+        """Reset the dungeon"""
+        self.state.dungeon.generate()
+        return {"success": True, "message": "Generated new dungeon"}
+    
+    # Helper method
+    def get_cell_type(self, x: int, y: int) -> str:
+        """Get readable cell type name"""
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return "None"
         
-        # Try to find by name
-        if color_input.lower() in colors:
-            return colors[color_input.lower()]
-        
-        # Try to parse hex
-        if isinstance(color_input, str) and color_input.startswith("#"):
-            try:
-                hex_color = color_input.lstrip("#")
-                return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-            except:
-                pass
-        
-        # Default to white
-        return (255, 255, 255)
+        if cell.is_room: return "Room"
+        if cell.is_corridor: return "Corridor"
+        if cell.is_blocked: return "Blocked"
+        if cell.is_perimeter: return "Perimeter"
+        if cell.is_door:
+            if cell.is_arch: return "Archway"
+            if cell.is_locked: return "Locked Door"
+            if cell.is_trapped: return "Trapped Door"
+            if cell.is_secret: return "Secret Door"
+            if cell.is_portc: return "Portcullis"
+            return "Door"
+        if cell.is_stairs:
+            if cell.is_stair_up: return "Stairs Up"
+            if cell.is_stair_down: return "Stairs Down"
+            return "Stairs"
+        return "Unknown"
+
+

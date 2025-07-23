@@ -28,6 +28,69 @@ def handle_movement():
             "message": f"Movement error: {str(e)}"
         })
 
+@api_bp.route('/download-debug', methods=['GET'])
+def download_debug():
+    """Download debug grid file"""
+    try:
+        filename = "dungeon_debug_grid.txt"
+        return send_file(
+            filename,
+            as_attachment=True,
+            download_name="dungeon_debug.txt",
+            mimetype='text/plain'
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+
+@api_bp.route('/debug-grid', methods=['GET'])        
+def get_debug_grid(self, show_blocking=True, show_types=False):
+    """
+    Generate a text-based grid representation for debugging
+    - show_blocking: Highlight movement-blocking cells
+    - show_types: Show cell type abbreviations
+    """
+    grid = []
+    px, py = self.party_position
+    
+    for y in range(self.height):
+        row = []
+        for x in range(self.width):
+            cell = self.get_cell(x, y)
+            if not cell:
+                row.append('?')
+                continue
+            
+            # Party position
+            if x == px and y == py:
+                row.append('P')
+                continue
+            
+            # Movement blocking status
+            if show_blocking:
+                if self.movement.is_passable(x, y):
+                    symbol = '·'  # Passable
+                else:
+                    symbol = '#'  # Blocked
+            # Cell type display
+            elif show_types:
+                if cell.is_room: symbol = 'R'
+                elif cell.is_corridor: symbol = 'C'
+                elif cell.is_blocked: symbol = 'B'
+                elif cell.is_perimeter: symbol = 'P'
+                elif cell.is_door: symbol = 'D'
+                elif cell.is_stairs: symbol = 'S'
+                else: symbol = '?'
+            # Simple view
+            else:
+                if cell.is_room: symbol = '■'
+                elif cell.is_corridor: symbol = '·'
+                else: symbol = ' '  # Empty/blocked
+            
+            row.append(symbol)
+        grid.append(''.join(row))
+    
+    return grid
+
 @api_bp.route('/move/<direction>', methods=['POST'])
 def move_party(direction):
     try:

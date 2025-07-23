@@ -179,24 +179,44 @@ class DungeonGeneratorNeo:
         # Prepare stairs and doors in world coordinates
         stairs = []
         for stair in self.stairList:
+            # Convert to standardized coordinate system
             stairs.append({
-                'row': stair['row'], 
-                'col': stair['col'],
+                'x': stair['x'],  # column = horizontal position
+                'y': stair['y'],  # row = vertical position
+                'dx': stair['dx'],
+                'dy': stair['dy'],
                 'key': stair['key'],
-                'orientation': stair.get('orientation', 'horizontal'),
-                'dx': stair.get('dx', 0),
-                'dy': stair.get('dy', 0)
+                'orientation': stair.get('orientation', 'horizontal')
             })
         
+        # Prepare doors in world coordinates
         doors = []
         for door in self.doorList:
+            # Convert to standardized coordinate system
             doors.append({
-                'row': door['row'],
-                'col': door['col'],
+                'x': door['x'],  # column = horizontal position
+                'y': door['x'],  # row = vertical position
                 'orientation': door.get('orientation', 'horizontal'),
                 'key': door.get('key', 'door'),
                 'out_id': door.get('out_id')
             })
+
+        # Prepare rooms in world coordinates
+        rooms = []
+        for room in self.room:
+            rooms.append({
+                'id': room['id'],
+                'x': room['west'],  # horizontal start
+                'y': room['north'],  # vertical start
+                'width': room['east'] - room['west'] + 1,
+                'height': room['south'] - room['north'] + 1,
+                'north': room['north'],
+                'south': room['south'],
+                'west': room['west'],
+                'east': room['east']
+            })
+
+        self.fill_blocks() # set blocked which cannot be traveled through.
         
         return {
             'grid': self.cell,
@@ -419,15 +439,39 @@ class DungeonGeneratorNeo:
             # print(f"Adjacent cells:")
             for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
                 nr, nc = door_r + dr, door_c + dc
-                cell_type = "WALL" if self.cell[nr][nc] & self.BLOCKED else "OPEN"
+                cell_type = "BLOCKED" if self.cell[nr][nc] & self.BLOCKED else "OPEN"
                 #print(f"  ({nr},{nc}): {cell_type}")
-            
-            orientation = 'horizontal' if open_dir in ['north', 'south'] else 'vertical'
-            #print(f"Setting orientation: {orientation}")
 
+            # DETERMINE DOOR ORIENTATION ===========================
+            # Default to perpendicular to wall direction
+            orientation = 'horizontal' if sill['dir'] in ['east', 'west'] else 'vertical'
+            
+            # Check adjacent cells to confirm open space
+            if sill['dir'] in ['north', 'south']:
+                # Horizontal door needs open space left/right
+                if (self.has_open_space(door_r, door_c-1) and 
+                    self.has_open_space(door_r, door_c+1)):
+                    orientation = 'horizontal'
+                else:
+                    orientation = 'vertical'
+            else:
+                # Vertical door needs open space above/below
+                if (self.has_open_space(door_r-1, door_c) and 
+                    self.has_open_space(door_r+1, door_c)):
+                    orientation = 'vertical'
+                else:
+                    orientation = 'horizontal'
+            # ======================================================
+            #print(f"Setting orientation: {orientation}")
             
             door_type = self.door_type()
-            door = {'row': door_r, 'col': door_c, 'orientation': orientation}
+            door = {
+                'x': door_c,  # horizontal position
+                'y': door_r,  # vertical position
+                'orientation': orientation,
+                'key': door_type
+            }
+
             
             if door_type == self.ARCH:
                 self.cell[door_r][door_c] |= self.ARCH
@@ -560,6 +604,23 @@ class DungeonGeneratorNeo:
                 if self.cell[r][c] & self.CORRIDOR:
                     continue
                 self.tunnel(i, j)
+        self.block_corridor_walls() # this should create the blocking for corridors
+
+    def block_corridor_walls(self):
+        for i in range(1, self.n_i):
+            r = (i * 2) + 1
+            for j in range(1, self.n_j):
+                c = (j * 2) + 1
+                if not (self.cell[r][c] & self.CORRIDOR):
+                    continue
+                
+                # Block adjacent cells in all directions
+                for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    nr, nc = r + dr, c + dc
+                    if (0 <= nr <= self.max_row and 0 <= nc <= self.max_col and
+                        not (self.cell[nr][nc] & (self.ROOM | self.CORRIDOR | self.ENTRANCE))):
+                        self.cell[nr][nc] |= self.BLOCKED | self.PERIMETER
+
 
     def tunnel(self, i, j, last_dir=None):
         dirs = self.tunnel_dirs(last_dir)
@@ -637,7 +698,7 @@ class DungeonGeneratorNeo:
             # First stair: down
             if ends:
                 end = ends.pop(0)
-                r, c = end['row'], end['col']
+                r, c = end['x'], end['y']
                 self.cell[r][c] |= self.STAIR_DN
                 end['key'] = 'down'
                 self.stairs.append(end)
@@ -645,7 +706,7 @@ class DungeonGeneratorNeo:
             # Second stair: up
             if ends:
                 end = ends.pop(0)
-                r, c = end['row'], end['col']
+                r, c = end['x'], end['y']
                 self.cell[r][c] |= self.STAIR_UP
                 end['key'] = 'up'
                 self.stairs.append(end)
@@ -654,7 +715,7 @@ class DungeonGeneratorNeo:
                 if not ends:
                     break
                 end = ends.pop(0)
-                r, c = end['row'], end['col']
+                x, y = end['x'], end['y']
                 # Store corridor direction vector
                 next_pos = end['next']
                 end['corridor_dx'] = next_pos[0]
@@ -664,10 +725,10 @@ class DungeonGeneratorNeo:
                 stair_type = i if i < 2 else random.randint(0, 1)
                 
                 if stair_type == 0:
-                    self.cell[r][c] |= self.STAIR_DN
+                    self.cell[y][x] |= self.STAIR_DN
                     end['key'] = 'down'
                 else:
-                    self.cell[r][c] |= self.STAIR_UP
+                    self.cell[y][x] |= self.STAIR_UP
                     end['key'] = 'up'
                 
                 self.stairList.append(end)
@@ -685,13 +746,13 @@ class DungeonGeneratorNeo:
                 
                 for dir, config in self.stair_end.items():
                     if self.check_tunnel(self.cell, r, c, config):
-                        dx, dy = config['next']  # This is what matters
-                        orientation = 'horizontal' if dy != 0 else 'vertical'                  
+                        next_vec = config['next']  # This is what matters
+                        orientation = 'horizontal' if next_vec[0] != 0 else 'vertical'                  
                         end = {
-                            'row': r, 
-                            'col': c,
-                            'dx': dx, 
-                            'dy': dy,
+                            'y': c,  # column = horizontal position
+                            'x': r,  # row = vertical position
+                            'dx': -next_vec[0],  # horizontal direction invert movement to end
+                            'dy': -next_vec[1],  # vertical direction invert movement to end
                             'orientation': orientation
                         }
                         ends.append(end)
@@ -703,7 +764,6 @@ class DungeonGeneratorNeo:
             self.remove_deadends()
         self.clean_disconnected_doors()
         self.fix_doors()
-        self.empty_blocks()
 
     def remove_deadends(self):
         p = self.opts['remove_deadends']
@@ -799,7 +859,7 @@ class DungeonGeneratorNeo:
             for dir, doors in room['door'].items():
                 shiny = []
                 for door in doors:
-                    r, c = door['row'], door['col']
+                    r, c = door['y'], door['x']
                     if not (self.cell[r][c] & (self.ROOM | self.CORRIDOR)):
                         continue
                     
@@ -819,12 +879,6 @@ class DungeonGeneratorNeo:
                     self.doorList.append(door)
                 
                 room['door'][dir] = shiny
-
-    def empty_blocks(self):
-        for r in range(self.opts['n_rows'] + 1):
-            for c in range(self.opts['n_cols'] + 1):
-                if self.cell[r][c] & self.BLOCKED:
-                    self.cell[r][c] = self.NOTHING
 
     def get_door_type(self, cell):
         if cell & ARCH:
@@ -849,3 +903,16 @@ class DungeonGeneratorNeo:
             return False
         cell = self.state.grid[r][c]
         return cell and (cell.is_room or cell.is_corridor)
+
+    def fill_blocks(self):
+        """Post-processing step to fill all empty space with BLOCKED cells"""
+        for r in range(len(self.cell)):
+            for c in range(len(self.cell[r])):
+                # Only fill cells that are truly empty (NOTHING)
+                if self.cell[r][c] == self.NOTHING:
+                    self.cell[r][c] = self.BLOCKED
+                    
+                # Also fill perimeter cells that aren't doors/entrances
+                elif (self.cell[r][c] & self.PERIMETER and 
+                      not (self.cell[r][c] & (self.ENTRANCE | self.DOORSPACE))):
+                    self.cell[r][c] = self.BLOCKED        

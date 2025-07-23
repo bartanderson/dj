@@ -36,13 +36,14 @@ class DungeonStateNeo:
         # Create orientation lookups
         self.door_orientations = {}
         for door in generator_result.get('doors', []):
-            x, y = door['col'], door['row']
+            x, y = door['x'], door['y']
             self.door_orientations[(x, y)] = door['orientation']
         
         self.stair_orientations = {}
+        # Store stairs as an attribute
         self.stairs = generator_result.get('stairs', [])
         for stair in self.stairs:
-            x, y = stair['col'], stair['row']
+            x, y = stair['x'], stair['y']
             self.stair_orientations[(x, y)] = stair.get('orientation', 'horizontal')
         
         # Initialize secret mask
@@ -54,6 +55,55 @@ class DungeonStateNeo:
         # Initialize visibility system
         self.visibility_system = None # Will be set later
         self.movement = None # Will be set later
+
+    def save_debug_grid(self, filename="dungeon_debug.txt", show_blocking=True, show_types=False):
+        """
+        Save text-based grid representation to file
+        - show_blocking: Highlight movement-blocking cells
+        - show_types: Show cell type abbreviations
+        """
+        grid = self.get_debug_grid(show_blocking, show_types)
+        try:
+            with open(filename, 'w') as f:
+                f.write("\n".join(grid))
+            return True, f"Debug grid saved to {filename}"
+        except Exception as e:
+            return False, f"Error saving debug grid: {str(e)}"
+
+    def get_debug_grid(self, show_blocking=True, show_types=True):
+        """Enhanced debug view showing block fill status"""
+        grid = []
+        px, py = self.party_position
+        
+        for y in range(self.height):
+            row = []
+            for x in range(self.width):
+                cell = self.get_cell(x, y)
+                if not cell:
+                    row.append('?')
+                    continue
+                
+                # Party position
+                if x == px and y == py:
+                    row.append('P')
+                    continue
+                
+                # Blocking status
+                if cell.is_blocked:
+                    row.append('#')  # Blocked
+                elif cell.is_perimeter:
+                    row.append('X')  # Perimeter
+                elif cell.is_door:
+                    row.append('D')  # Door
+                elif cell.is_room:
+                    row.append('R')  # Room
+                elif cell.is_corridor:
+                    row.append('C')  # Corridor
+                else:
+                    row.append('!')  # Unexpected type
+            grid.append(''.join(row))
+        
+        return grid
 
     def _populate_grid(self, generator_grid):
         """Populate grid with DungeonCellNeo objects"""

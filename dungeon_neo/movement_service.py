@@ -11,10 +11,27 @@ class MovementService:
         actual_steps = 0
         messages = []
         path_cells = []
+        print(f"Starting move from ({y}, {x}) to {direction}")
         
         for step in range(steps):
             new_x, new_y = x + dx, y + dy
-            
+            print(f"Step {step}: Moving to ({new_x}, {new_y})")
+            # Add detailed cell inspection
+            if not self.state.grid_system.is_valid_position(new_x, new_y):
+                print(f"  Position invalid!")
+                break
+                
+            cell = self.state.get_cell(new_x, new_y)
+            if not cell:
+                print(f"  No cell found!")
+                break
+                
+            print(f"  Cell flags: {hex(cell.base_type)}")
+            print(f"  is_blocked: {cell.is_blocked}")
+            print(f"  is_perimeter: {cell.is_perimeter}")
+            print(f"  is_door: {cell.is_door}")
+            print(f"  is_arch: {cell.is_arch}")
+            print(f"  is_passable: {self.is_passable(new_x, new_y)}")
             # Validate next cell
             if not self.is_passable(new_x, new_y):
                 cell_type = self.get_cell_type(new_x, new_y)
@@ -31,7 +48,7 @@ class MovementService:
             x, y = new_x, new_y
             actual_steps += 1
             path_cells.append((x, y))
-            messages.append(f"Moved {direction} to ({x}, {y})")
+            messages.append(f"Moved {direction} to ({y}, {x})")
         
         # Update state and discovery
         self.state.party_position = (x, y)

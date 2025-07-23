@@ -90,8 +90,10 @@ class DungeonRendererNeo:
         # DEBUG: Draw red dot at party position
         party_x, party_y = state.party_position
         base_draw.ellipse([
-            party_y*cs + cs//3, party_x*cs + cs//3,
-            party_y*cs + 2*cs//3, party_x*cs + 2*cs//3
+            party_y*cs + cs//3,
+            party_x*cs + cs//3,
+            party_y*cs + 2*cs//3,
+            party_x*cs + 2*cs//3
         ], fill="red")
 
         print(f"Rendering dungeon at size {width}x{height}")
@@ -102,10 +104,12 @@ class DungeonRendererNeo:
         print(f"Rendering with visibility_system: {visibility_system is not None}")
         
         # Draw cells with visibility handling
-        for y in range(state.height):
-            for x in range(state.width):
+        for x in range(state.width):
+            for y in range(state.height):
+            
                 cell = state.get_cell(x, y)
-                x_pix, y_pix = state.grid_system.world_to_pixel(x, y, self.cell_size)
+                x_pix = y * cs
+                y_pix = x * cs
 
                 is_explored = visibility_system and visibility_system.is_explored(x, y)
                 
@@ -169,7 +173,7 @@ class DungeonRendererNeo:
                 # Draw stairs
                 if cell.is_stairs:
                     stair_type = 'up' if cell.is_stair_up else 'down'
-                    orientation = state.get_stair_orientation(cell.x, cell.y)
+                    orientation = state.get_stair_orientation(x, y)
                     self._draw_stairs(base_draw, x_pix, y_pix, stair_type, orientation)
                 
                 # Draw labels

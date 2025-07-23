@@ -1,14 +1,24 @@
 # File: dungeon_neo/ai_integration.py
+from .tool_system import ToolRegistry, tool
 from ollama import Client
-from dungeon_neo.dm_tools import DMTools
+from .dm_tools import DMTools
 import re
 import json
 
 class DungeonAI:
     def __init__(self, dungeon_state, ollama_host="http://localhost:11434"):
-        self.tools = DMTools(dungeon_state)
+        self.state = dungeon_state
         self.ollama = Client(host=ollama_host)
-        self.primitive_descriptions = self._get_primitive_descriptions()
+        self.tool_registry = ToolRegistry()
+        
+        # Register tools from this class
+        self.tool_registry.register_from_class(self)
+        
+        # Register tools from DMTools
+        self.tools = DMTools(dungeon_state)
+        self.tool_registry.register_from_class(self.tools)
+        
+        # Generate dynamic system prompt
         self.system_prompt = self._create_system_prompt()
         
     def _get_primitive_descriptions(self):
@@ -22,161 +32,110 @@ class DungeonAI:
             "glow": "Glowing aura. Parameters: color, intensity (1-10)"
         }
     
-    def _create_system_prompt(self):
-        """Create the system prompt for the AI"""
+    def _create_system_prompt(self) -> str:
+        """Create prompt with dynamic tool descriptions"""
+        tools_spec = self.tool_registry.get_tools_spec()
+        tools_json = json.dumps(tools_spec, indent=2)
+        
         return f"""
         You are a Dungeon Master assistant in a text-based dungeon game. 
-        The player can give you commands to move or modify the dungeon.
+        The player can give you commands to interact with the dungeon.
+        
+        You have access to these tools:
+        {tools_json}
         
         Always respond with JSON containing:
         {{
-            "command": "<command_type>",
-            "parameters": {{ ... }}
+            "thoughts": "<reasoning>",
+            "tool": "<tool_name>",
+            "arguments": {{ ... }}
         }}
         
-        Available commands:
-        - MOVE_PARTY <direction> [steps]
-          Directions: north, south, east, west
-          Example: {{"command": "MOVE_PARTY", "parameters": {{"direction": "west", "steps": 3}}}}
-          
-        - ADD_ENTITY <x> <y> <entity_type>
-          Entity types: npc, monster, item, trap, portal, chest, corpse, altar, fountain
-          Example: {{"command": "ADD_ENTITY", "parameters": {{"x": 5, "y": 10, "entity_type": "chest"}}}}
-          
-        - ADD_OVERLAY <x> <y> <primitive>
-          Primitives: circle, square, triangle, text, blood, glow
-          Example: {{"command": "ADD_OVERLAY", "parameters": {{"x": 5, "y": 10, "primitive": "blood"}}}}
-          
-        - DESCRIBE <x> <y> <text>
-          Example: {{"command": "DESCRIBE", "parameters": {{"x": 5, "y": 10, "text": "Bloody altar"}}}}
-          
         Important rules:
-        1. Always respond with valid JSON
-        2. Only use the commands listed above
-        3. For movement, use MOVE_PARTY
-        4. Coordinates are numbers (x, y positions)
-        5. Use simple, direct commands
+        1. Only use the tools provided
+        2. Fill all required arguments
+        3. Use simple, direct commands
+        4. If a request requires multiple steps, break it into separate responses
         """
 
-    def move_party(self, direction, steps=1):
-        """Use centralized movement logic"""
-        return self.tools.state.move_party(direction, steps)
-    
-    def process_command(self, natural_language):
-        # First try to parse as direct movement command
-        movement_command = self.parse_movement(natural_language)
-        if movement_command:
-            print(f"Handled as direct movement command: {movement_command}")
-            return self.execute_ai_command(movement_command)
+    @tool(
+        name="inspect_cell",
+        description="Get detailed information about a dungeon cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)"
+    )
+    def inspect_cell(self, x: int, y: int) -> dict:
+        """Get detailed information about a cell"""
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return {"success": False, "message": f"No cell at ({x}, {y})"}
         
-        # Otherwise use existing AI processing
-        return self.process_with_ai(natural_language)
-    
-    def parse_movement(self, command):
-        """Enhanced parser for 8-direction movement"""
-        command = command.lower().strip()
+        # Get readable cell type from DMTools
+        cell_type = self.tools.get_cell_type(x, y)
         
-        # Direction mapping including 8 directions
-        direction_map = {
-            'n': 'north', 'north': 'north', 'up': 'north',
-            's': 'south', 'south': 'south', 'down': 'south',
-            'e': 'east', 'east': 'east', 'right': 'east',
-            'w': 'west', 'west': 'west', 'left': 'west',
-            'ne': 'northeast', 'northeast': 'northeast', 'north-east': 'northeast',
-            'nw': 'northwest', 'northwest': 'northwest', 'north-west': 'northwest',
-            'se': 'southeast', 'southeast': 'southeast', 'south-east': 'southeast',
-            'sw': 'southwest', 'southwest': 'southwest', 'south-west': 'southwest'
+        # Build detailed description
+        description = f"Cell at ({x}, {y}):\n"
+        description += f"- Type: {cell_type}\n"
+        description += f"- Base flags: {hex(cell.base_type)}\n"
+        description += f"- Is room: {cell.is_room}\n"
+        description += f"- Is corridor: {cell.is_corridor}\n"
+        description += f"- Is blocked: {cell.is_blocked}\n"
+        description += f"- Is door: {cell.is_door}\n"
+        description += f"- Is arch: {cell.is_arch}\n"
+        description += f"- Is stairs: {cell.is_stairs}\n"
+        description += f"- Is secret: {cell.is_secret}\n"
+        description += f"- Description: {cell.description or 'None'}\n"
+        description += f"- Entities: {len(cell.entities)}\n"
+        description += f"- Overlays: {len(cell.overlays)}"
+        
+        return {
+            "success": True,
+            "message": description
+        }
+    
+    @tool(
+        name="get_current_position",
+        description="Get the party's current position"
+    )
+    def get_current_position(self) -> dict:
+        """Get party's current position"""
+        x, y = self.state.party_position
+        return {
+            "success": True,
+            "message": f"Party is at ({x}, {y})",
+            "position": (x, y)
         }
         
-        # Match movement patterns
-        patterns = [
-            r'^(?:move|go|walk|head)\s+(\w+)(?:\s+(\d+))?',  # "move northeast 3"
-            r'^(\w+)(?:\s+(\d+))?$',                          # "northeast 3"
-            r'^(\d+)\s+steps?\s+(\w+)$',                      # "3 steps northeast"
-            r'^(\w+)\s+(\d+)$'                                # "northeast 3"
-        ]
-        
-        for pattern in patterns:
-            match = re.match(pattern, command)
-            if match:
-                # Extract direction and steps
-                dir_str = match.group(1) if 'steps' not in pattern else match.group(2)
-                steps_str = match.group(2) if 'steps' not in pattern else match.group(1)
-                
-                # Convert steps to number
-                steps = int(steps_str) if steps_str and steps_str.isdigit() else 1
-                
-                # Map direction
-                direction = direction_map.get(dir_str.lower())
-                if direction:
-                    return {
-                        "command": "MOVE_PARTY",
-                        "parameters": {"direction": direction, "steps": steps}
-                    }
-        
-        return None
-
-    
-    def process_with_ai(self, natural_language):
-        """Original AI processing logic (unchanged)"""
-        response = self.ollama.generate(
+    def process_command(self, natural_language: str) -> dict:
+        # Generate response chunks
+        response_chunks = self.ollama.generate(
             model="deepseek-r1:8b",
             system=self.system_prompt,
             prompt=natural_language,
             format="json",
-            options={"temperature": 0.3}
+            options={"temperature": 0.1},
+            stream=True  # Enable streaming to get chunks
         )
         
-        try:
-            # Extract response text
-            response_text = ""
-            if hasattr(response, "response"):
-                response_text = response.response
-            elif "text" in response:
-                response_text = response["text"]
-            else:
-                return {"success": False, "message": "AI response format not recognized"}
-            
-            command_data = json.loads(response_text)
-            return self.execute_ai_command(command_data)
-        except json.JSONDecodeError:
-            return {"success": False, "message": "AI returned invalid JSON"}
-    
-    def execute_ai_command(self, command_data):
-        cmd = command_data.get("command", "").upper()
-        params = command_data.get("parameters", {})
+        # Collect all response chunks
+        full_response = ""
+        for chunk in response_chunks:
+            full_response += chunk.get("response", "")
         
         try:
-            if cmd == "MOVE_PARTY":
-                # Use the DMTools move_party method
-                return self.tools.move_party(
-                    params["direction"], 
-                    params.get("steps", 1)
-                )
-                
-            elif cmd == "SET_PROPERTY":
-                return self.tools.set_property(
-                    params["x"], params["y"], 
-                    params["property"], params["value"]
-                )
-                
-            elif cmd == "ADD_ENTITY":
-                return self.tools.add_entity(
-                    params["x"], params["y"], 
-                    params["entity_type"], **params.get("properties", {})
-                )
-                
-            elif cmd == "ADD_OVERLAY":
-                return self.tools.add_overlay(
-                    params["x"], params["y"], 
-                    params["primitive"], **params.get("parameters", {})
-                )
-                
-            elif cmd == "DESCRIBE":
-                return self.tools.describe_cell(
-                    params["x"], params["y"], params["text"]
-                )
-                
-            return {"success": False, "message": f"Unknown command: {cmd}"}
-        except KeyError as e:
-            return {"success": False, "message": f"Missing parameter: {str(e)}"}
+            # Parse the full response
+            response_json = json.loads(full_response)
+            tool_name = response_json.get("tool")
+            arguments = response_json.get("arguments", {})
+            
+            # Execute the selected tool
+            result = self.tool_registry.execute_tool(tool_name, arguments)
+            return result
+        except json.JSONDecodeError:
+            return {"success": False, "message": "AI returned invalid JSON"}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Tool execution error: {str(e)}",
+                "ai_response": full_response  # Use the full_response variable
+            }

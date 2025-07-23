@@ -123,6 +123,14 @@
             padding: 15px;
             background: #16213e;
             border-top: 1px solid #0f3460;
+            flex-direction: column;
+        }
+        .chat-buttons {
+            display: flex;
+            padding: 15px;
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+            flex-direction: row;
         }
         
         #chat-text {
@@ -210,10 +218,17 @@
                     </div>
                 </div>
                 <div class="chat-input">
+                    <div class="chat-buttons">
+                        <div class="debug-controls">
+                            <button id="debug-grid">Debug Grid</button>
+                        </div>
+                        <button id="send-chat">Send</button>
+                    </div>
+                    <div>
                     <textarea id="chat-text" 
                               placeholder="Tell the AI what to do (e.g., 'Move party west 3 spaces', 'Add a treasure chest here', 'Describe this room as bloody')"
                               rows="3"></textarea>
-                    <button id="send-chat">Send</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -246,7 +261,7 @@
             .then(data => {
                 if (data.success) {
                     document.getElementById('position').textContent = 
-                        `${data.new_position[0]}, ${data.new_position[1]}`;
+                        `${data.new_position[1]}, ${data.new_position[0]}`;
                     updateMap();
                 }
                 addToChatLog(data.message, data.success ? 'system' : 'error');
@@ -360,6 +375,37 @@
                 }
             });
         }
+
+
+        // Add to JavaScript
+        document.getElementById('debug-grid').addEventListener('click', () => {
+            fetch('/api/ai-command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: "!debug grid"})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add download link to chat
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = '/api/download-debug';
+                    downloadLink.textContent = 'Download Dungeon Debug Grid';
+                    downloadLink.download = 'dungeon_debug.txt';
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('message', 'system');
+                    messageDiv.innerHTML = `Debug grid saved!<br>`;
+                    messageDiv.appendChild(downloadLink);
+                    
+                    chatLog.appendChild(messageDiv);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                } else {
+                    addToChatLog(`Error: ${data.message}`, 'error');
+                }
+            });
+        });
+
         
         document.getElementById('debug-toggle').addEventListener('click', () => {
             debugMode = !debugMode;

@@ -4,6 +4,7 @@ from dungeon_neo.renderer_neo import DungeonRendererNeo
 from dungeon_neo.visibility_neo import VisibilitySystemNeo
 from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
 from dungeon_neo.movement_service import MovementService
+from dungeon_neo.cell_neo import DungeonCellNeo
 
 class DungeonSystem:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -100,30 +101,24 @@ class DungeonSystem:
             return
         else:
             stair = up_stairs[0]
-            stair_x, stair_y = stair['row'], stair['col']
-            
-            # Find corridor approach direction (opposite of stored vector)
-            dx = -stair['dx']
-            dy = -stair['dy']
-            
-            # Place party in approach corridor and swap x and y so that position is correct
-            party_x = stair_x - dx
-            party_y = stair_y - dy
-            
+            party_x = stair['y'] + stair['dy']
+            party_y = stair['x'] + stair['dx']
             self.state.party_position = (party_x, party_y)
                     
     def is_blocked_for_movement(self, cell):
-        """Check if cell blocks movement"""
-        print(f"is_blocked_for_movement {cell}")
-        # Always blocking
-        if cell.base_type == self.NOTHING:
+        """Simplified blocking logic"""
+        # Block all BLOCKED cells
+        if cell.is_blocked:
             return True
-        if cell.is_blocked or cell.is_perimeter:
+            
+        # Block all perimeter cells that aren't doors
+        if cell.is_perimeter and not cell.is_door:
             return True
-        # Door handling - Block all doors except arches
+            
+        # Block non-arch doors
         if cell.is_door and not cell.is_arch:
             return True
-        
+            
         return False
     
     def move_party(self, direction):

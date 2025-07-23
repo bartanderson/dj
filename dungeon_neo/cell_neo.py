@@ -43,6 +43,7 @@ class DungeonCellNeo:
         self.entities = []       # List of Entity objects
         self.overlays = []       # List of Overlay objects
         self.description = ""    # Text description of the cell
+        self.properties = {}
 
     @property
     def position(self):
@@ -77,6 +78,17 @@ class DungeonCellNeo:
             return int(value)
         except (TypeError, ValueError):
             return self.NOTHING
+
+    def is_passable(self, secret_revealed=False):
+        if self.is_blocked: 
+            return False
+        if self.is_secret and not secret_revealed:
+            return False
+        if self.is_perimeter and not self.is_door:
+            return False
+        if self.is_door and not self.is_arch:
+            return False
+        return True
         
     def reveal_secret(self):
         if self.base_type == self.SECRET:
