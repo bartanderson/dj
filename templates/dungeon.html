@@ -397,7 +397,6 @@
         }
 
 
-        // Add to JavaScript
         document.getElementById('debug-grid').addEventListener('click', () => {
             fetch('/api/ai-command', {
                 method: 'POST',
@@ -407,11 +406,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Add download link to chat
+                    const filename = data.filename || 'dungeon_debug.txt';
                     const downloadLink = document.createElement('a');
-                    downloadLink.href = '/api/download-debug';
+                    downloadLink.href = `/api/download-debug?file=${filename}`;
                     downloadLink.textContent = 'Download Dungeon Debug Grid';
-                    downloadLink.download = 'dungeon_debug.txt';
+                    downloadLink.download = filename;
                     
                     const messageDiv = document.createElement('div');
                     messageDiv.classList.add('message', 'system');

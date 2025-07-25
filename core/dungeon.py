@@ -2,9 +2,8 @@ from dungeon_neo.generator_neo import DungeonGeneratorNeo
 from dungeon_neo.state_neo import DungeonStateNeo
 from dungeon_neo.renderer_neo import DungeonRendererNeo
 from dungeon_neo.visibility_neo import VisibilitySystemNeo
-from dungeon_neo.constants import CELL_FLAGS, DIRECTION_VECTORS, OPPOSITE_DIRECTIONS
+from dungeon_neo.constants import CELL_FLAGS
 from dungeon_neo.movement_service import MovementService
-from dungeon_neo.cell_neo import DungeonCellNeo
 
 class DungeonSystem:
     NOTHING = CELL_FLAGS['NOTHING']
@@ -120,59 +119,7 @@ class DungeonSystem:
             return True
             
         return False
-    
-    def move_party(self, direction):
-        """Move party with proper movement restrictions"""
-        # Use our direction constants
-        dx, dy = DIRECTION_VECTORS.get(direction.lower(), (0, 0))
-        x, y = self.state.party_position
         
-        # Calculate new position
-        new_pos = (x + dx, y + dy)
-        print(f"move_party {new_pos}")
-        
-        # Check if move is valid
-        if not self.state.is_valid_position(new_pos):
-            return False, "Cannot move there", self.state.party_position
-        
-        # Check if path is blocked
-        new_x, new_y = new_pos
-        cell = self.state.get_cell(new_x, new_y)
-
-        # Detailed cell debug
-        # print(f"Cell at ({new_x},{new_y}):")
-        # print(f"  Type: {type(cell)}")
-        # print(f"  Base type: {hex(cell.base_type)}")
-        # print(f"  is_blocked: {cell.is_blocked}")
-        # print(f"  is_perimeter: {cell.is_perimeter}")
-        # print(f"  is_door: {cell.is_door}")
-        # print(f"  is_arch: {cell.is_arch}")
-        # print(f"  is_room: {cell.is_room}")
-        # print(f"  is_corridor: {cell.is_corridor}")
-
-        # print(f"move_party before is_blocked_for_movement {cell}")
-        if cell and self.is_blocked_for_movement(cell):
-            return False, "Blocked by obstacle", self.state.party_position
-        print(f"Movement not blocked. continuing")
-        
-        # Update position in state
-        self.state.party_position = new_pos
-        self.update_visibility()
-        
-        # Update visibility system
-        self.visibility_system.party_position = new_pos
-        self.visibility_system.update_visibility()
-        
-        print(f"Party moved to: {new_pos}")
-        
-        return True, f"Moved {direction}", new_pos
-
-    def update_visibility(self):
-        """Update visibility after position changes"""
-        if self.state and self.state.visibility_system:
-            self.state.visibility_system.party_position = self.state.party_position
-            self.state.visibility_system.update_visibility()
-    
     def get_image(self, debug=False):
         # Simply pass the state directly to the renderer
         return self.renderer.render(
@@ -180,9 +127,3 @@ class DungeonSystem:
             debug_show_all=debug,
             visibility_system=self.state.visibility_system
         )
-    
-    def get_current_room_description(self): # maybe we can integrate AI later
-        """Simple room description for UI"""
-        x, y = self.state.party_position
-        cell = self.state.get_cell(x, y)
-        return f"You're in a {cell} room"

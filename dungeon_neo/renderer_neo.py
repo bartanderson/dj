@@ -619,31 +619,3 @@ class DungeonRendererNeo:
         if size is None:
             size = self.cell_size
         draw.rectangle([x, y, x + size, y + size], fill=self.COLORS['corridor'])
-
-class EnhancedRenderer(DungeonRendererNeo):
-    def render_entity(self, draw, x, y, cs, entity):
-        """Render entity using overlay system instead of icons"""
-        # Skip direct icon rendering
-        pass
-
-    def render_cell(self, x, y, cell, state, debug=False):
-        super().render_cell(x, y, cell, state, debug)
-        cs = self.cell_size
-        x_pix = y * cs
-        y_pix = x * cs
-        
-        # Render entities as text overlays
-        for entity in cell.entities:
-            # Create text overlay for entity
-            overlay = Overlay(
-                primitive="text",
-                text=entity.get_symbol(),
-                color=(255, 255, 255),
-                size=1.0
-            )
-            overlay.render(self.draw, x_pix, y_pix, cs)
-        
-        # Render other overlays
-        for overlay in cell.overlays:
-            overlay.render(self.draw, x_pix, y_pix, cs)
-

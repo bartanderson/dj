@@ -413,21 +413,6 @@ class DMTools:
         cell.overlays.append(Overlay(primitive, **overlay_params))
         
         return {"success": True, "message": f"Added {primitive} overlay to ({x}, {y})"}
-
-    
-    @tool(
-        name="get_debug_grid",
-        description="Get a text-based debug view of the dungeon"
-    )
-    def get_debug_grid(self) -> dict:
-        """Get debug grid view"""
-        grid = self.state.get_debug_grid()
-        grid_str = "\n".join(grid)
-        return {
-            "success": True,
-            "message": f"Debug Grid:\n{grid_str}",
-            "grid": grid
-        }
     
     @tool(
         name="reset_dungeon",
@@ -437,3 +422,24 @@ class DMTools:
         """Reset the dungeon"""
         self.state.dungeon.generate()
         return {"success": True, "message": "Generated new dungeon"}
+
+    @tool(
+        name="get_debug_grid",
+        description="Get a text-based debug view of the dungeon"
+    )
+    def get_debug_grid(self) -> dict:
+        """Get debug grid view"""
+        grid = self.state.get_debug_grid()
+        grid_str = "\n".join(grid)
+        
+        # Save to file
+        filename = "dungeon_debug_grid.txt"
+        with open(filename, 'w') as f:
+            f.write(grid_str)
+            
+        return {
+            "success": True,
+            "message": f"Debug Grid saved to {filename}",
+            "grid": grid,
+            "filename": filename  # Return filename for download
+        }

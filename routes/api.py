@@ -30,9 +30,8 @@ def handle_movement():
 
 @api_bp.route('/download-debug', methods=['GET'])
 def download_debug():
-    """Download debug grid file"""
+    filename = request.args.get('file', 'dungeon_debug_grid.txt')
     try:
-        filename = "dungeon_debug_grid.txt"
         return send_file(
             filename,
             as_attachment=True,
@@ -90,30 +89,6 @@ def get_debug_grid(self, show_blocking=True, show_types=False):
         grid.append(''.join(row))
     
     return grid
-
-@api_bp.route('/move/<direction>', methods=['POST'])
-def move_party(direction):
-    try:
-        game_state = current_app.game_state
-        state = game_state.dungeon.state
-        
-        # Use the same move_party method as AI commands
-        success, message = state.move_party(direction, 1)
-        
-        if success:
-            game_state.dungeon.update_visibility()
-            return jsonify({
-                "success": True,
-                "message": message,
-                "new_position": state.party_position
-            })
-        return jsonify({"success": False, "message": message})
-    
-    except Exception as e:
-        return jsonify({
-            "success": False, 
-            "message": f"Movement error: {str(e)}"
-        })
 
 @api_bp.route('/ai-command', methods=['POST'])
 def handle_ai_command():
@@ -187,21 +162,3 @@ def get_dungeon_image():
 def reset_dungeon():
     current_app.game_state.dungeon.generate()
     return jsonify({"success": True, "message": "Dungeon reset"})
-
-@api_bp.route('/debug-toggle', methods=['POST'])
-def dev_reveal_all():
-    try:
-        game_state = current_app.game_state
-        game_state.dungeon_state.visibility.set_reveal_all(True)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@api_bp.route('/reset', methods=['POST'])
-def dev_reset_view():
-    try:
-        game_state = current_app.game_state
-        game_state.dungeon_state.visibility.set_reveal_all(False)
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500

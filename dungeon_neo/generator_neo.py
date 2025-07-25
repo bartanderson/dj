@@ -735,7 +735,7 @@ class DungeonGeneratorNeo:
                         'y': end['y'],  # column position
                         'dx': end['dx'],
                         'dy': end['dy'],
-                        'orientation': -end['orientation'],  # Use calculated orientation
+                        'orientation': end['orientation'],  # Use calculated orientation
                         'key': 'down' if (i == 0 and n == 2) else 'up'
                     }    
                 
