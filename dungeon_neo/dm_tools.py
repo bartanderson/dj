@@ -1,9 +1,40 @@
+from dungeon_neo.constants import CELL_FLAGS
+from dungeon_neo.entity import Entity
+from dungeon_neo.overlay import Overlay
 from .tool_system import tool
 import random
+import json
 
 class DMTools:
     def __init__(self, state):
         self.state = state
+
+        # Directly import all flags from constants
+        self.NOTHING = CELL_FLAGS['NOTHING']
+        self.BLOCKED = CELL_FLAGS['BLOCKED']
+        self.ROOM = CELL_FLAGS['ROOM']
+        self.CORRIDOR = CELL_FLAGS['CORRIDOR']
+        self.PERIMETER = CELL_FLAGS['PERIMETER']
+        self.ENTRANCE = CELL_FLAGS['ENTRANCE']
+        self.ROOM_ID = CELL_FLAGS['ROOM_ID']
+        self.ARCH = CELL_FLAGS['ARCH']
+        self.DOOR = CELL_FLAGS['DOOR']
+        self.LOCKED = CELL_FLAGS['LOCKED']
+        self.TRAPPED = CELL_FLAGS['TRAPPED']
+        self.SECRET = CELL_FLAGS['SECRET']
+        self.PORTC = CELL_FLAGS['PORTC']
+        self.STAIR_DN = CELL_FLAGS['STAIR_DN']
+        self.STAIR_UP = CELL_FLAGS['STAIR_UP']
+        self.LABEL = CELL_FLAGS['LABEL']
+        self.DOORSPACE = CELL_FLAGS['DOORSPACE']
+        self.STAIRS = CELL_FLAGS['STAIRS']
+
+    # Helper functions
+    def success(self, message):
+        return {"success": True, "message": message}
+    
+    def fail(self, message):
+        return {"success": False, "message": message}
 
     @tool(
         name="move_party",
@@ -19,6 +50,305 @@ class DMTools:
         cell = self.state.get_cell(x, y)
         if cell: cell.properties[prop] = value
 
+
+    # CELL TYPE MANAGEMENT
+    @tool(
+        name="set_cell_type",
+        description=(
+            "DOOR CREATION WORKFLOW: create_door combines these for efficient door creation"
+            "1. Use 'set_cell_type' with cell_type='door' to create door space"
+            "2. Use 'set_door_properties' to configure door type and orientation"
+        
+            "STAIR CREATION WORKFLOW:"
+            "1. Use 'set_cell_type' with cell_type='stairs'"
+            "2. Use 'set_stairs_orientation' to configure"
+            "SET base cell type. Use before setting door properties:"
+            "1. 'room': Open floor space"
+            "2. 'corridor': Connecting hallway"
+            "3. 'blocked': Impassable wall"
+            "4. 'door': Door space (must set properties after)"
+            "5. 'stairs': Staircase"
+            "Rules:"
+            "• Stairs require corridor dead ends"
+            "• Doors require adjacent open spaces"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        cell_type="room, corridor, blocked, door, stairs"
+    )
+    def set_cell_type(self, x: int, y: int, cell_type: str) -> dict:
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return self.fail("Invalid coordinates")
+        
+        cell_type = cell_type.lower()
+        
+        # Validate type-specific rules
+        if cell_type == "stairs":
+            if not (cell.is_room or cell.is_corridor):
+                return self.fail("Stairs can only replace room/corridor cells")
+            if not self._is_at_corridor_end(x, y):
+                return self.fail("Stairs must be at corridor dead ends")
+        
+        elif cell_type == "door":
+            if not self._has_adjacent_open_space(x, y):
+                return self.fail("Doors require adjacent open spaces")
+        
+        # Clear existing type flags
+        cell.base_type &= ~(
+            self.constants['ROOM'] | 
+            self.constants['CORRIDOR'] | 
+            self.constants['BLOCKED'] | 
+            self.constants['DOORSPACE'] | 
+            self.constants['STAIRS']
+        )
+        
+        # Set new type
+        type_map = {
+            'room': self.constants['ROOM'],
+            'corridor': self.constants['CORRIDOR'],
+            'blocked': self.constants['BLOCKED'],
+            'door': self.constants['DOORSPACE'],
+            'stairs': self.constants['STAIRS']
+        }
+        cell.base_type |= type_map.get(cell_type, self.constants['BLOCKED'])
+        
+        # Special handling for stairs
+        if cell_type == "stairs":
+            self.state.stair_orientations[(x, y)] = 'horizontal'
+        
+        return self.success(f"Cell set to {cell_type} at ({x}, {y})")
+
+
+
+    # CREATE DOOR
+    @tool(
+        name="create_door",
+        description=(
+            "CREATE a new door. Steps:"
+            "1. Converts cell to door space"
+            "2. Sets door properties"
+            "3. Handles orientation"
+            "Rules:"
+            "• Requires adjacent open spaces (N/S/E/W must be room/corridor)"
+            "• Secret doors start hidden"
+            "• Arch doors are always passable"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        orientation="horizontal or vertical",
+        door_type="arch, normal, locked, trapped, secret, portc"
+    )
+    def create_door(self, x: int, y: int, orientation: str, door_type: str) -> dict:
+        # First convert cell to door space
+        cell_result = self.set_cell_type(x, y, "door")
+        if not cell_result["success"]:
+            return cell_result
+        
+        # Then set door properties
+        return self.set_door_properties(x, y, orientation, door_type)
+
+    # DOOR PROPERTIES
+    @tool(
+        name="set_door_properties",
+        description=(
+            "SET properties for EXISTING doors. Use after set_cell_type:"
+            "1. 'arch': Open passage"
+            "2. 'normal': Standard door"
+            "3. 'locked': Requires key"
+            "4. 'trapped': Contains trap"
+            "5. 'secret': Hidden door"
+            "6. 'portc': Portcullis gate"
+            "Rules:"
+            "• Only works on door cells"
+            "• Orientation must match corridor direction"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        orientation="horizontal or vertical",
+        door_type="arch, normal, locked, trapped, secret, portc"
+    )
+    def set_door_properties(self, x: int, y: int, orientation: str, door_type: str) -> dict:
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return self.fail("Invalid coordinates")
+        if not cell.is_door:
+            return self.fail("Only door cells can have door properties")
+        if orientation not in ["horizontal", "vertical"]:
+            return self.fail("Orientation must be horizontal or vertical")
+        
+        # Set orientation
+        self.state.door_orientations[(x, y)] = orientation
+        
+        # Clear existing door flags
+        cell.base_type &= ~(
+            self.constants['ARCH'] | 
+            self.constants['DOOR'] | 
+            self.constants['LOCKED'] | 
+            self.constants['TRAPPED'] | 
+            self.constants['SECRET'] | 
+            self.constants['PORTC']
+        )
+        
+        # Set new door type
+        type_map = {
+            'arch': self.constants['ARCH'],
+            'normal': self.constants['DOOR'],
+            'locked': self.constants['LOCKED'],
+            'trapped': self.constants['TRAPPED'],
+            'secret': self.constants['SECRET'],
+            'portc': self.constants['PORTC']
+        }
+        if door_type not in type_map:
+            return self.fail(f"Invalid door type: {door_type}")
+        
+        cell.base_type |= type_map[door_type]
+        
+        # Handle secret state
+        if door_type == "secret":
+            self.state.secret_mask[y][x] = False  # Start hidden
+        else:
+            self.state.secret_mask[y][x] = True  # Make visible
+        
+        return self.success(f"Set door to {door_type} ({orientation}) at ({x}, {y})")
+
+    # REVEAL SECRET (Fixed Implementation)
+    @tool(
+        name="reveal_secret",
+        description=(
+            "Reveal a secret door. Rules: "
+            "• Only works on cells with secret flag "
+            "• Makes door visible and passable "
+            "• Converts secret door to arch"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)"
+    )
+    def reveal_secret(self, x: int, y: int) -> dict:
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return self.fail("Invalid coordinates")
+        if not cell.is_secret:
+            return self.fail("No secret door at this location")
+        
+        state = self.state.__class__
+        
+        # Update secret mask to reveal door
+        self.state.secret_mask[y][x] = True
+        
+        # Convert to arch (passable)
+        cell.base_type &= ~state.SECRET
+        cell.base_type |= state.ARCH
+        
+        return self.success(f"Secret door revealed at ({x}, {y})")
+
+    # STAIRS ORIENTATION
+    @tool(
+        name="set_stairs_orientation",
+        description=(
+            "Set stairs orientation. Rules: "
+            "• Only valid for stairs at corridor ends "
+            "• Orientation must match corridor direction "
+            "• Up stairs face upward, down stairs face downward"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        direction="up or down",
+        orientation="horizontal or vertical"
+    )
+    def set_stairs_orientation(self, x: int, y: int, direction: str, orientation: str) -> dict:
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return self.fail("Invalid coordinates")
+        if not cell.is_stairs:
+            return self.fail("Only stairs cells can have orientation set")
+        if not self._is_at_corridor_end(x, y):
+            return self.fail("Stairs must be at corridor dead ends")
+        if orientation not in ["horizontal", "vertical"]:
+            return self.fail("Orientation must be horizontal or vertical")
+        if direction not in ["up", "down"]:
+            return self.fail("Direction must be up or down")
+        
+        # Update stairs properties
+        state = self.state.__class__
+        if direction == "up":
+            cell.base_type |= state.STAIR_UP
+            cell.base_type &= ~state.STAIR_DN
+        else:
+            cell.base_type |= state.STAIR_DN
+            cell.base_type &= ~state.STAIR_UP
+            
+        self.state.stair_orientations[(x, y)] = orientation
+        return self.success(f"Set {direction} stairs to {orientation} at ({x}, {y})")
+
+    # HELPER METHODS
+    def _has_adjacent_open_space(self, x, y):
+        """Check adjacent cells for room/corridor (door requirement)"""
+        for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
+            nx, ny = x + dx, y + dy
+            cell = self.state.get_cell(nx, ny)
+            if cell and (cell.is_room or cell.is_corridor):
+                return True
+        return False
+
+    def _is_at_corridor_end(self, x, y):
+        """Check if position is at corridor end (stairs requirement)"""
+        open_count = 0
+        for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
+            nx, ny = x + dx, y + dy
+            cell = self.state.get_cell(nx, ny)
+            if cell and not cell.is_blocked:
+                open_count += 1
+        return open_count == 1  # Dead end
+
+
+    @tool(
+        name="modify_cell_flag",
+        description=(
+            "MODIFY specific cell flags. For advanced use:"
+            "• Properties: arch, door, locked, trapped, secret, portc, stairs_up, stairs_down"
+            "• Use 'true' to enable, 'false' to disable"
+            "Example: Make a door trapped"
+        ),
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        property="Specific property to modify",
+        value="true or false"
+    )
+    def modify_cell_flag(self, x: int, y: int, property: str, value: str) -> dict:
+        cell = self.state.get_cell(x, y)
+        if not cell:
+            return {"success": False, "message": "Invalid coordinates"}
+
+        # Handle boolean values
+        if value.lower() not in ['true', 'false']:
+            return {"success": False, "message": "Value must be 'true' or 'false'"}
+        
+        bool_value = value.lower() == 'true'
+        
+        # Map property names to flags
+        prop_to_flag = {
+            'arch': self.constants['ARCH'],
+            'door': self.constants['DOOR'],
+            'locked': self.constants['LOCKED'],
+            'trapped': self.constants['TRAPPED'],
+            'secret': self.constants['SECRET'],
+            'portc': self.constants['PORTC'],
+            'stairs_up': self.constants['STAIR_UP'],
+            'stairs_down': self.constants['STAIR_DN']
+        }
+        
+        if property not in prop_to_flag:
+            return {"success": False, "message": f"Invalid property: {property}"}
+        
+        flag = prop_to_flag[property]
+        
+        if bool_value:
+            cell.base_type |= flag
+        else:
+            cell.base_type &= ~flag
+            
+        return {"success": True, "message": f"Set {property} to {value} at ({x}, {y})"}
     @tool(
         name="add_entity",
         description="Add an entity to a dungeon cell",
@@ -51,47 +381,40 @@ class DMTools:
         cell.description = text
         return {"success": True, "message": f"Added description to ({x}, {y})"}
 
-    def add_overlay(self, x, y, primitive, **params):
+    @tool(
+        name="add_overlay",
+        description="Add a primitive overlay to a cell",
+        x="X coordinate (number)",
+        y="Y coordinate (number)",
+        primitive="Primitive type (circle, square, triangle, line, text, polygon)",
+        color_r="Red component (0-255)",
+        color_g="Green component (0-255)",
+        color_b="Blue component (0-255)",
+        parameters="JSON string of additional parameters (optional)"
+    )
+    def add_overlay(self, x: int, y: int, primitive: str, color_r: int, color_g: int, color_b: int, parameters: str = "{}") -> dict:
+        """Add a primitive overlay to a cell"""
+        import json
         cell = self.state.get_cell(x, y)
         if not cell:
             return {"success": False, "message": "Invalid coordinates"}
         
-        # Handle special primitive types
-        if primitive == "blood":
-            return self._add_blood_overlay(cell, params)
-        elif primitive == "glow":
-            return self._add_glow_overlay(cell, params)
+        try:
+            # Parse additional parameters
+            params = json.loads(parameters) if parameters else {}
+        except json.JSONDecodeError:
+            return {"success": False, "message": "Invalid parameters format"}
         
-        # Default primitive handling
-        cell.overlays.append(Overlay(primitive, **params))
-        return {"success": True, "message": f"Added {primitive} overlay"}
-    
-    @tool(
-        name="add_blood_effect",
-        description="Add a blood stain effect to a cell",
-        x="X coordinate (number)",
-        y="Y coordinate (number)",
-        size="Size of the effect (0.1-2.0)",
-        intensity="Intensity of the effect (1-5)"
-    )
-    def add_blood_effect(self, x: int, y: int, size: float = 1.0, intensity: int = 3) -> dict:
-        """Add blood effect to cell"""
-        return self.add_overlay(x, y, "blood", size=size, intensity=intensity)
-    
-    @tool(
-        name="add_glow_effect",
-        description="Add a glowing aura effect to a cell",
-        x="X coordinate (number)",
-        y="Y coordinate (number)",
-        color="Color name or hex value",
-        intensity="Intensity of the glow (1-10)"
-    )
-    def add_glow_effect(self, x: int, y: int, color: str = "yellow", intensity: int = 5) -> dict:
-        """Add glow effect to cell"""
-        return self.add_overlay(x, y, "glow", color=color, intensity=intensity)
+        # Create color tuple
+        color = (color_r, color_g, color_b)
         
-        return {"success": True, "message": "Added glow effect"}
+        # Create overlay with all parameters
+        overlay_params = {"color": color, **params}
+        cell.overlays.append(Overlay(primitive, **overlay_params))
+        
+        return {"success": True, "message": f"Added {primitive} overlay to ({x}, {y})"}
 
+    
     @tool(
         name="get_debug_grid",
         description="Get a text-based debug view of the dungeon"
@@ -107,19 +430,6 @@ class DMTools:
         }
     
     @tool(
-        name="reveal_secret",
-        description="Reveal a secret door or passage",
-        x="X coordinate (number)",
-        y="Y coordinate (number)"
-    )
-    def reveal_secret(self, x: int, y: int) -> dict:
-        """Reveal a secret at specified position"""
-        success = self.state.reveal_secret(x, y)
-        if success:
-            return {"success": True, "message": f"Revealed secret at ({x}, {y})"}
-        return {"success": False, "message": f"No secret found at ({x}, {y})"}
-    
-    @tool(
         name="reset_dungeon",
         description="Generate a new dungeon"
     )
@@ -127,29 +437,3 @@ class DMTools:
         """Reset the dungeon"""
         self.state.dungeon.generate()
         return {"success": True, "message": "Generated new dungeon"}
-    
-    # Helper method
-    def get_cell_type(self, x: int, y: int) -> str:
-        """Get readable cell type name"""
-        cell = self.state.get_cell(x, y)
-        if not cell:
-            return "None"
-        
-        if cell.is_room: return "Room"
-        if cell.is_corridor: return "Corridor"
-        if cell.is_blocked: return "Blocked"
-        if cell.is_perimeter: return "Perimeter"
-        if cell.is_door:
-            if cell.is_arch: return "Archway"
-            if cell.is_locked: return "Locked Door"
-            if cell.is_trapped: return "Trapped Door"
-            if cell.is_secret: return "Secret Door"
-            if cell.is_portc: return "Portcullis"
-            return "Door"
-        if cell.is_stairs:
-            if cell.is_stair_up: return "Stairs Up"
-            if cell.is_stair_down: return "Stairs Down"
-            return "Stairs"
-        return "Unknown"
-
-

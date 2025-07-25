@@ -730,8 +730,16 @@ class DungeonGeneratorNeo:
                 else:
                     self.cell[y][x] |= self.STAIR_UP
                     end['key'] = 'up'
+                    stair = {
+                        'x': end['x'],  # row position
+                        'y': end['y'],  # column position
+                        'dx': end['dx'],
+                        'dy': end['dy'],
+                        'orientation': -end['orientation'],  # Use calculated orientation
+                        'key': 'down' if (i == 0 and n == 2) else 'up'
+                    }    
                 
-                self.stairList.append(end)
+                self.stairList.append(stair)
 
     def stair_ends(self):
         ends = []
@@ -751,8 +759,8 @@ class DungeonGeneratorNeo:
                         end = {
                             'y': c,  # column = horizontal position
                             'x': r,  # row = vertical position
-                            'dx': -next_vec[0],  # horizontal direction invert movement to end
-                            'dy': -next_vec[1],  # vertical direction invert movement to end
+                            'dx': next_vec[0],  # horizontal direction invert movement to end
+                            'dy': next_vec[1],  # vertical direction invert movement to end
                             'orientation': orientation
                         }
                         ends.append(end)

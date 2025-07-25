@@ -2,6 +2,7 @@
 from .tool_system import ToolRegistry, tool
 from ollama import Client
 from .dm_tools import DMTools
+from .overlay import Overlay
 import re
 import json
 
@@ -15,27 +16,42 @@ class DungeonAI:
         self.tool_registry.register_from_class(self)
         
         # Register tools from DMTools
-        self.tools = DMTools(dungeon_state)
-        self.tool_registry.register_from_class(self.tools)
+        self.dm_tools = DMTools(dungeon_state)
+        self.tool_registry.register_from_class(self.dm_tools)
+
+        # If we need to register other tools, do it like DMTools above
+        #
+        #
+        #
+        #
+        #
+
         
         # Generate dynamic system prompt
         self.system_prompt = self._create_system_prompt()
+
         
-    def _get_primitive_descriptions(self):
-        """Get AI-readable primitive descriptions"""
-        return {
-            "circle": "A circular shape. Parameters: size (0.1-2.0), color (name or hex)",
-            "square": "A square shape. Parameters: size (0.1-2.0), color, rotation (degrees)",
-            "triangle": "A triangular shape. Parameters: size, color, direction (up/down/left/right)",
-            "text": "Text overlay. Parameters: content (string), color, size (0.5-3.0)",
-            "blood": "Blood stain effect. Parameters: size, intensity (1-5)",
-            "glow": "Glowing aura. Parameters: color, intensity (1-10)"
+    def _get_primitive_params(self, primitive):
+        """Get parameter description for each primitive"""
+        params = {
+            "circle": "size (0.1-1.0, default=0.8)",
+            "square": "size (0.1-1.0, default=0.8), rotation (degrees)",
+            "triangle": "size (0.1-1.0, default=0.8), rotation (degrees)",
+            "line": "start_x, start_y, end_x, end_y (0.0-1.0), width (pixels)",
+            "text": "content (string), size (font scale)",
+            "polygon": "points (list of [x,y] coordinates 0.0-1.0)"
         }
+        return params.get(primitive, "")
     
     def _create_system_prompt(self) -> str:
         """Create prompt with dynamic tool descriptions"""
         tools_spec = self.tool_registry.get_tools_spec()
         tools_json = json.dumps(tools_spec, indent=2)
+
+        primitives_desc = "\n".join([
+            f"- {prim}: Parameters: {self._get_primitive_params(prim)}"
+            for prim in Overlay.PRIMITIVE_TYPES
+        ])
         
         return f"""
         You are a Dungeon Master assistant in a text-based dungeon game. 
@@ -44,18 +60,23 @@ class DungeonAI:
         You have access to these tools:
         {tools_json}
         
+        Important rules:
+        1. Only use the tools provided
+        2. Use simple, direct commands
+        3. For movement: 'move_party direction steps'
+        4. If a request requires multiple steps, break it into separate responses
+        Available primitive types for overlays:
+        {primitives_desc}
+        
+        Always specify color parameter as hexadecimal (#000000 - #FFFFFF).
+        Use relative coordinates (0.0-1.0) for positioning within a cell.
+
         Always respond with JSON containing:
         {{
             "thoughts": "<reasoning>",
             "tool": "<tool_name>",
             "arguments": {{ ... }}
         }}
-        
-        Important rules:
-        1. Only use the tools provided
-        2. Fill all required arguments
-        3. Use simple, direct commands
-        4. If a request requires multiple steps, break it into separate responses
         """
 
     @tool(
@@ -95,7 +116,7 @@ class DungeonAI:
     
     @tool(
         name="get_current_position",
-        description="Get the party's current position"
+        description="Get the party's current position: if you have x,y then you don't use this"
     )
     def get_current_position(self) -> dict:
         """Get party's current position"""
@@ -105,6 +126,30 @@ class DungeonAI:
             "message": f"Party is at ({x}, {y})",
             "position": (x, y)
         }
+
+    def log_tool_call(self, tool_name, arguments):
+        """Log detailed tool call information for debugging"""
+        import inspect
+        tool = self.tool_registry.get_tool(tool_name)
+        
+        if not tool:
+            return f"Tool not found: {tool_name}"
+        
+        debug_info = f"Tool Call: {tool_name}\n"
+        debug_info += f"Arguments: {arguments}\n"
+        debug_info += f"Function: {tool.func.__name__}\n"
+        debug_info += f"Docstring: {inspect.getdoc(tool.func)}\n"
+        
+        # Get source code if available
+        try:
+            import inspect
+            source_lines = inspect.getsourcelines(tool.func)
+            debug_info += "Source:\n"
+            debug_info += "".join(source_lines[0][:20]) + "\n..."
+        except:
+            debug_info += "Source unavailable\n"
+        
+        return debug_info        
         
     def process_command(self, natural_language: str) -> dict:
         # Generate response chunks
@@ -130,6 +175,9 @@ class DungeonAI:
             
             # Execute the selected tool
             result = self.tool_registry.execute_tool(tool_name, arguments)
+            # Add debug info to response
+            debug_info = self.log_tool_call(tool_name, arguments)
+            result["debug_info"] = debug_info
             return result
         except json.JSONDecodeError:
             return {"success": False, "message": "AI returned invalid JSON"}

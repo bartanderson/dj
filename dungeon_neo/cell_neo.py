@@ -34,10 +34,6 @@ class DungeonCellNeo:
         self.objects = []
         self.npcs = []
         self.items = []
-        self.visibility = {'explored': False, 'visible': False}
-        self.search_difficulty = 10
-        self.searched = False
-        self.discovered = False
         self.modifications = []
         self.temporary_effects = []
         self.entities = []       # List of Entity objects

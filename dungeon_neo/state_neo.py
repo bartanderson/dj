@@ -136,7 +136,9 @@ class DungeonStateNeo:
             self.visibility_system.party_position = value
 
     def get_cell(self, x: int, y: int):
-        return self.grid_system.get_cell(x, y)
+        """Get cell with bounds checking"""
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return self.grid_system.get_cell(x, y)
     
     def get_door_orientation(self, x: int, y: int):
         return self.door_orientations.get((x, y), 'horizontal')
@@ -153,5 +155,5 @@ class DungeonStateNeo:
     def update_visibility_for_path(self, path_cells: list):
         """Update visibility for a path of cells"""
         for (x, y) in path_cells:
-            self.visibility_system.mark_explored(x, y)
+            self.visibility_system.mark_visibility(x, y)
         self.visibility_system.update_visibility()

@@ -44,7 +44,6 @@ class DungeonRendererNeo:
         'stairs_up': (10, 10, 10),
         'stairs_down': (10, 10, 10),
         'grid': (100, 100, 100),
-        'explored': (100, 100, 100),
         'legend_bg': (25, 25, 25),
         'legend_text': (255, 255, 255)
     }
@@ -99,7 +98,7 @@ class DungeonRendererNeo:
         print(f"Rendering dungeon at size {width}x{height}")
         print(f"Party position why is it coming out x/y flipped here?: {state.party_position}")
 
-        explored_count = 0
+        visible_count = 0
 
         print(f"Rendering with visibility_system: {visibility_system is not None}")
         
@@ -111,10 +110,10 @@ class DungeonRendererNeo:
                 x_pix = y * cs
                 y_pix = x * cs
 
-                is_explored = visibility_system and visibility_system.is_explored(x, y)
+                is_visible = visibility_system and visibility_system.is_visible(x, y)
                 
-                if is_explored:
-                    explored_count += 1
+                if is_visible:
+                    visible_count += 1
                 
                 # Handle secrets first
                 if cell.is_secret:
@@ -217,25 +216,25 @@ class DungeonRendererNeo:
 
         # --- Fog layer
         
-        print(f"Rendered explored cells: {explored_count}/{state.width*state.height}")
-        myexplored_count = 0
+        print(f"Visible count: {visible_count}/{state.width*state.height}")
+        visited_count = 0
         if not debug_show_all and visibility_system:
             # Create fog layer
             fog_img = Image.new('RGBA', (width, height), (0, 0, 0, 255))  # Opaque black
             fog_draw = ImageDraw.Draw(fog_img)
             
-            # Cut holes in fog layer for explored cells
+            # Cut holes for visible cells
 
             for y in range(state.height):
                 for x in range(state.width):
-                    if visibility_system.is_explored(x, y):
-                        myexplored_count += 1
+                    if visibility_system.is_visible(x, y):
+                        visited_count += 1
                         # Make this cell transparent in fog layer
                         fog_draw.rectangle(
-                            [y*cs, x*cs, (y+1)*cs, (x+1)*cs], # swapping x and y because it needs to be but I wish I knew why it needed to be here
+                            [y*cs, x*cs, (y+1)*cs, (x+1)*cs], # swapping x and y
                             fill=(0, 0, 0, 0)  # Fully transparent
                         )
-            # this proves I can cut a hole in the fog, but need to fix above so that there are positions to cut
+            # this allowed me to prove I could cut a hole in the fog
             test = False
             if test:
                 fog_draw.rectangle(
@@ -246,7 +245,7 @@ class DungeonRendererNeo:
             base_rgba = base_img.convert('RGBA')
             composite = Image.alpha_composite(base_rgba, fog_img)
             result_img = composite.convert('RGB')
-            print(f"my explored cells: {myexplored_count}/{state.width*state.height}")
+            print(f"visited cells: {visited_count}/{state.width*state.height}")
 
             print("fog")
         else:

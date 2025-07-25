@@ -127,19 +127,31 @@ def handle_ai_command():
         # Use AI for all commands - simpler and more robust
         ai = DungeonAI(state)
         result = ai.process_command(command)
+
+        # Log successful command
+        current_app.logger.info(f"AI command executed: {command}")
+        current_app.logger.debug(f"AI result: {result}")
         
-        # Update visibility if movement occurred
-        if result.get('success') and 'MOVE' in result.get('message', ''):
-            game_state.dungeon.update_visibility()
-            
-        return jsonify(result)
+        if result.get('success'):
+            if 'MOVE' in result.get('message', ''):
+                game_state.dungeon.update_visibility() # Update visibility if movement occurred
+            return jsonify(result)
+        else:
+            # Add detailed error to response
+            result['command'] = command
+            result['ai_response'] = result.get('ai_response', 'No AI response')
+            return jsonify(result)
         
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        tb = traceback.format_exc()
+        current_app.logger.error(f"AI processing error: {str(e)}\n{tb}")
+        
         return jsonify({
             "success": False,
-            "message": f"AI processing error: {str(e)}"
+            "message": f"AI processing error: {str(e)}",
+            "command": command,
+            "traceback": tb if current_app.config['DEBUG'] else None
         })
 
 @api_bp.route('/debug-state')

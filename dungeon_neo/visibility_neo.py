@@ -27,30 +27,28 @@ class VisibilitySystemNeo:
     BLOCK_CORR = CELL_FLAGS['BLOCK_CORR']
     BLOCK_DOOR = CELL_FLAGS['BLOCK_DOOR']
 
-    def __init__(self, grid_system, party_position):
+    def __init__(self, grid_system, party_position, light_radius=3):
         self.grid_system = grid_system
         self.party_position = party_position
-        self.explored = set()  # Cells that have been seen
-        self.visible = set()   # Cells currently visible
+        self.light_radius = light_radius
+        self.visible_cells = set()   # Persistent visibility (once seen, always shown)
         self.update_visibility()
     
-    def mark_explored(self, x: int, y: int):
-        """Mark a cell as explored (persistent memory)"""
-        if self.grid_system.is_valid_position(x, y):
-            self.explored.add((x, y))
-    
     def update_visibility(self):
+        """Update visibility from current position"""
         if not self.party_position:
             return
         
         x0, y0 = self.party_position
         new_visible = set()
-        new_visible.add((x0, y0))  # Always visible
+        new_visible.add((x0, y0))
         
-        # Diamond-shaped visibility (Manhattan distance <= 2)
-        for dx in range(-2, 2):
-            for dy in range(-2, 2):
-                if abs(dx) + abs(dy) > 4:  # Skip corners
+        radius = self.light_radius
+        
+        # Diamond-shaped visibility (Manhattan distance <= radius)
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                if abs(dx) + abs(dy) > radius:
                     continue
                     
                 x, y = x0 + dx, y0 + dy
@@ -67,13 +65,36 @@ class VisibilitySystemNeo:
                     if self._is_blocking(cx, cy):
                         visible = False
                         break
-                        
+                
                 if visible:
                     new_visible.add((x, y))
         
-        self.visible = new_visible
-        self.explored |= new_visible
-
+        # Add new visible cells to persistent set
+        self.visible_cells |= new_visible
+    
+    def update_visibility_directional(self, direction, steps):
+        """Update visibility along a movement path"""
+        if not self.party_position:
+            return
+            
+        x0, y0 = self.party_position
+        dx, dy = DIRECTION_VECTORS_8[direction]
+        
+        for step in range(1, steps + 1):
+            x, y = x0 + dx * step, y0 + dy * step
+            if not self.grid_system.is_valid_position(x, y):
+                break
+                
+            if self._is_blocking(x, y):
+                break
+                
+            # Add cell and its neighbors to visibility
+            self.visible_cells.add((x, y))
+            for adj_dx, adj_dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                adj_x, adj_y = x + adj_dx, y + adj_dy
+                if self.grid_system.is_valid_position(adj_x, adj_y):
+                    self.visible_cells.add((adj_x, adj_y))
+    
     def _get_line(self, x0, y0, x1, y1):
         """Bresenham's line algorithm"""
         points = []
@@ -108,9 +129,5 @@ class VisibilitySystemNeo:
                 cell.base_type == CELL_FLAGS['NOTHING'])
     
     def is_visible(self, x: int, y: int) -> bool:
-        """Check if cell is currently visible"""
-        return (x, y) in self.visible
-        
-    def is_explored(self, x: int, y: int) -> bool:
-        """Check if cell has been explored (seen before)"""
-        return (x, y) in self.explored
+        """Check if cell has been made visible (persistent)"""
+        return (x, y) in self.visible_cells

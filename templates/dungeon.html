@@ -104,6 +104,15 @@
             animation: fadeIn 0.3s;
         }
         
+        .message.error {
+            background: #4a1a1a; /* Dark red background */
+            color: #ff9999;      /* Light red text */
+            white-space: pre-wrap; /* Preserve newlines */
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
         .message.user {
             background: #0f3460;
             align-self: flex-end;
@@ -298,7 +307,18 @@
                     addToChatLog(`AI: ${data.message}`, 'ai');
                     updateMap();
                 } else {
-                    addToChatLog(`Error: ${data.message}`, 'ai');
+                    // Enhanced error display
+                    let errorMsg = `Error: ${data.message}`;
+                    
+                    if (data.traceback) {
+                        errorMsg += `\n\nTechnical Details:\n${data.traceback}`;
+                    }
+                    
+                    if (data.ai_response) {
+                        errorMsg += `\n\nAI Response:\n${data.ai_response}`;
+                    }
+                    
+                    addToChatLog(errorMsg, 'error');
                 }
             })
             .catch(error => {

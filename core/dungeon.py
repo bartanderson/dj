@@ -163,11 +163,7 @@ class DungeonSystem:
         self.visibility_system.party_position = new_pos
         self.visibility_system.update_visibility()
         
-        # DEBUG: Print explored grid
         print(f"Party moved to: {new_pos}")
-        cx, cy = new_pos
-        print("Explored area:")
-        cx, cy = new_pos
         
         return True, f"Moved {direction}", new_pos
 

@@ -6,33 +6,39 @@ class MovementService:
         self.visibility = state.visibility_system
     
     def move(self, direction: str, steps: int = 1) -> dict:
-        dx, dy = DIRECTION_VECTORS_8[direction]
+        """Move party with proper validation and visibility updates"""
+        # Get direction vector
+        dx, dy = DIRECTION_VECTORS_8.get(direction.lower(), (0, 0))
+        if dx == 0 and dy == 0:
+            return {
+                "success": False,
+                "message": f"Invalid direction: {direction}",
+                "new_position": self.state.party_position
+            }
+        
+        # Get current position
         x, y = self.state.party_position
         actual_steps = 0
         messages = []
-        path_cells = []
-        print(f"Starting move from ({y}, {x}) to {direction}")
         
+        # Update visibility along the path BEFORE moving
+        self.visibility.update_visibility_directional(direction, steps)
+        
+        # Execute movement step-by-step
         for step in range(steps):
             new_x, new_y = x + dx, y + dy
-            print(f"Step {step}: Moving to ({new_x}, {new_y})")
-            # Add detailed cell inspection
+            
+            # Check if position is valid
             if not self.state.grid_system.is_valid_position(new_x, new_y):
-                print(f"  Position invalid!")
+                messages.append(f"Cannot move to ({new_x}, {new_y}) - out of bounds")
                 break
                 
+            # Get cell and check if it's passable
             cell = self.state.get_cell(new_x, new_y)
             if not cell:
-                print(f"  No cell found!")
+                messages.append(f"Invalid cell at ({new_x}, {new_y})")
                 break
                 
-            print(f"  Cell flags: {hex(cell.base_type)}")
-            print(f"  is_blocked: {cell.is_blocked}")
-            print(f"  is_perimeter: {cell.is_perimeter}")
-            print(f"  is_door: {cell.is_door}")
-            print(f"  is_arch: {cell.is_arch}")
-            print(f"  is_passable: {self.is_passable(new_x, new_y)}")
-            # Validate next cell
             if not self.is_passable(new_x, new_y):
                 cell_type = self.get_cell_type(new_x, new_y)
                 messages.append(f"Blocked by {cell_type} at ({new_x}, {new_y})")
@@ -40,6 +46,7 @@ class MovementService:
                 
             # Validate diagonal paths
             if direction in ['northeast', 'northwest', 'southeast', 'southwest']:
+                # Check horizontal and vertical components
                 if not (self.is_passable(x + dx, y) and self.is_passable(x, y + dy)):
                     messages.append(f"Diagonal path blocked to ({new_x}, {new_y})")
                     break
@@ -47,30 +54,27 @@ class MovementService:
             # Move to next cell
             x, y = new_x, new_y
             actual_steps += 1
-            path_cells.append((x, y))
-            messages.append(f"Moved {direction} to ({y}, {x})")
+            messages.append(f"Moved {direction} to ({x}, {y})")
         
-        # Update state and discovery
+        # Update final position
+        old_position = self.state.party_position
         self.state.party_position = (x, y)
-        self.update_discovery(path_cells)
         
+        # Update visibility system with new position
+        self.visibility.party_position = (x, y)
+        self.visibility.update_visibility()
+        
+        # Return results
         return {
             "success": actual_steps > 0,
             "message": "\n".join(messages),
+            "old_position": old_position,
             "new_position": (x, y),
             "steps_moved": actual_steps
         }
-
-    def update_discovery(self, cells: list):
-        """Centralized discovery update"""
-        # Mark cells as explored
-        for (x, y) in cells:
-            self.state.visibility_system.mark_explored(x, y)
-            
-        # Add to visible set for current position
-        self.state.visibility_system.update_visibility()
-        
+    
     def is_passable(self, x: int, y: int) -> bool:
+        """Check if a cell is passable for movement"""
         if not self.state.grid_system.is_valid_position(x, y):
             return False
             
@@ -90,6 +94,7 @@ class MovementService:
         return not (cell.is_blocked or cell.is_perimeter)
     
     def get_cell_type(self, x: int, y: int) -> str:
+        """Get descriptive cell type"""
         if not self.state.grid_system.is_valid_position(x, y):
             return "boundary"
             
@@ -106,5 +111,5 @@ class MovementService:
             if cell.is_portc: return "portcullis"
             return "door"
         if cell.is_stairs: return "stairs"
-        if cell.is_secret: return "blocked" # don't give it away, may have to refine handling later
+        if cell.is_secret: return "secret door"
         return "unknown"
