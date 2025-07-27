@@ -3,12 +3,13 @@ from dungeon_neo.constants import DIRECTION_VECTORS_8
 class MovementService:
     def __init__(self, state):
         self.state = state
-        self.visibility = state.visibility_system
+        self.visibility = state.visibility_system if hasattr(state, 'visibility_system') else None
     
     def move(self, direction: str, steps: int = 1) -> dict:
         """Move party with proper validation and visibility updates"""
         # Get direction vector
         dx, dy = DIRECTION_VECTORS_8.get(direction.lower(), (0, 0))
+
         if dx == 0 and dy == 0:
             return {
                 "success": False,
@@ -26,7 +27,7 @@ class MovementService:
         
         # Execute movement step-by-step
         for step in range(steps):
-            new_x, new_y = x + dx, y + dy
+            new_y, new_x = y + dy, x + dx 
             
             # Check if position is valid
             if not self.state.grid_system.is_valid_position(new_x, new_y):
@@ -58,11 +59,12 @@ class MovementService:
         
         # Update final position
         old_position = self.state.party_position
-        self.state.party_position = (x, y)
+        self.state.party_position = (x, y) 
         
         # Update visibility system with new position
-        self.visibility.party_position = (x, y)
-        self.visibility.update_visibility()
+        if self.visibility:
+            self.visibility.party_position = (x, y)
+            self.visibility.update_visibility()
         
         # Return results
         return {

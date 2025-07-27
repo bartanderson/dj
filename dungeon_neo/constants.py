@@ -63,22 +63,43 @@ CELL_FLAGS['BLOCK_DOOR'] = (
 
 
 # Direction vectors - CONSISTENT ACROSS COMPONENTS
-DIRECTION_VECTORS = {
-    'north': (-1, 0),
-    'south': (1, 0),
-    'east': (0, 1),
-    'west': (0, -1)
-}
-DIRECTION_VECTORS_8 = {
-    'north': (-1, 0),
-    'south': (1, 0),
-    'east': (0, 1),
-    'west': (0, -1),
-    'northeast': (-1, 1),
-    'northwest': (-1, -1),
-    'southeast': (1, 1),
-    'southwest': (1, -1)
-}
+swap = True
+if swap:
+    DIRECTION_VECTORS = {
+        'north': (0, -1),    # Now moves right (original west)
+        'south': (0, 1),   # Now moves left (original east)
+        'east': (1, 0),     
+        'west': (-1, 0),    
+    }
+
+    DIRECTION_VECTORS_8 = {
+        'north': (0, -1),    # Now moves right (original west)
+        'south': (0, 1),   # Now moves left (original east)
+        'east': (1, 0),     
+        'west': (-1, 0),    
+        'northeast': (1, -1),
+        'northwest': (-1, -1),
+        'southeast': (1, 1),
+        'southwest': (-1, 1)
+    }
+else:
+    DIRECTION_VECTORS = {
+        'north': (-1, 0),
+        'south': (1, 0),
+        'east': (0, 1),
+        'west': (0, -1)
+    }
+    DIRECTION_VECTORS_8 = {
+        'north': (-1, 0),
+        'south': (1, 0),
+        'east': (0, 1),
+        'west': (0, -1),
+        'northeast': (-1, 1),
+        'northwest': (-1, -1),
+        'southeast': (1, 1),
+        'southwest': (1, -1)
+    }
+
 OPPOSITE_DIRECTIONS = {
     'north': 'south',
     'south': 'north',

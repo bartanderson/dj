@@ -54,27 +54,28 @@ class DMTools:
     # CELL TYPE MANAGEMENT
     @tool(
         name="set_cell_type",
-        description=(
-            "DOOR CREATION WORKFLOW: create_door combines these for efficient door creation"
-            "1. Use 'set_cell_type' with cell_type='door' to create door space"
-            "2. Use 'set_door_properties' to configure door type and orientation"
-        
-            "STAIR CREATION WORKFLOW:"
-            "1. Use 'set_cell_type' with cell_type='stairs'"
-            "2. Use 'set_stairs_orientation' to configure"
-            "SET base cell type. Use before setting door properties:"
-            "1. 'room': Open floor space"
-            "2. 'corridor': Connecting hallway"
-            "3. 'blocked': Impassable wall"
-            "4. 'door': Door space (must set properties after)"
-            "5. 'stairs': Staircase"
-            "Rules:"
-            "• Stairs require corridor dead ends"
-            "• Doors require adjacent open spaces"
-        ),
-        x="X coordinate (number)",
-        y="Y coordinate (number)",
-        cell_type="room, corridor, blocked, door, stairs"
+        description=("""
+        1. USE 'create_door' FOR DOORS - NOT 'set_cell_type'
+           - 'set_cell_type' only sets base types (room/corridor/blocked)
+           - 'create_door' handles full door setup (position+orientation+type)
+
+        2. DOOR CREATION STEPS:
+           a) "Create arch at (5,5)" → create_door(5,5,arch)
+           b) "Make door at (3,4) vertical" → create_door(3,4,vertical,normal)
+
+        3. NEVER USE 'set_cell_type' FOR DOORS:
+           - It cannot configure door-specific properties
+           - Use 'create_door' or 'set_door_properties' instead
+
+        4. EXAMPLE COMMANDS:
+           - "Create secret door at (7,2)"
+           - "Convert door at (5,8) to portcullis"
+           - "Make vertical arch at (3,4)"
+                ),
+                x="X coordinate (number)",
+                y="Y coordinate (number)",
+                cell_type="room, corridor, blocked, door, stairs"
+        """)
     )
     def set_cell_type(self, x: int, y: int, cell_type: str) -> dict:
         cell = self.state.get_cell(x, y)
@@ -96,22 +97,22 @@ class DMTools:
         
         # Clear existing type flags
         cell.base_type &= ~(
-            self.constants['ROOM'] | 
-            self.constants['CORRIDOR'] | 
-            self.constants['BLOCKED'] | 
-            self.constants['DOORSPACE'] | 
-            self.constants['STAIRS']
+            self.ROOM | 
+            self.CORRIDOR | 
+            self.BLOCKED | 
+            self.DOORSPACE | 
+            self.STAIRS
         )
         
         # Set new type
         type_map = {
-            'room': self.constants['ROOM'],
-            'corridor': self.constants['CORRIDOR'],
-            'blocked': self.constants['BLOCKED'],
-            'door': self.constants['DOORSPACE'],
-            'stairs': self.constants['STAIRS']
+            'room': self.ROOM,
+            'corridor': self.CORRIDOR,
+            'blocked': self.BLOCKED,
+            'door': self.DOORSPACE,
+            'stairs': self.STAIRS
         }
-        cell.base_type |= type_map.get(cell_type, self.constants['BLOCKED'])
+        cell.base_type |= type_map.get(cell_type, self.BLOCKED)
         
         # Special handling for stairs
         if cell_type == "stairs":
@@ -177,27 +178,28 @@ class DMTools:
         if orientation not in ["horizontal", "vertical"]:
             return self.fail("Orientation must be horizontal or vertical")
         
-        # Set orientation
+        # Set orientation in state and cell
         self.state.door_orientations[(x, y)] = orientation
+        cell.properties['orientation'] = orientation  # Add this line
         
         # Clear existing door flags
         cell.base_type &= ~(
-            self.constants['ARCH'] | 
-            self.constants['DOOR'] | 
-            self.constants['LOCKED'] | 
-            self.constants['TRAPPED'] | 
-            self.constants['SECRET'] | 
-            self.constants['PORTC']
+            self.ARCH | 
+            self.DOOR | 
+            self.LOCKED | 
+            self.TRAPPED | 
+            self.SECRET | 
+            self.PORTC
         )
         
         # Set new door type
         type_map = {
-            'arch': self.constants['ARCH'],
-            'normal': self.constants['DOOR'],
-            'locked': self.constants['LOCKED'],
-            'trapped': self.constants['TRAPPED'],
-            'secret': self.constants['SECRET'],
-            'portc': self.constants['PORTC']
+            'arch': self.ARCH,
+            'normal': self.DOOR,
+            'locked': self.LOCKED,
+            'trapped': self.TRAPPED,
+            'secret': self.SECRET,
+            'portc': self.PORTC
         }
         if door_type not in type_map:
             return self.fail(f"Invalid door type: {door_type}")
@@ -328,14 +330,14 @@ class DMTools:
         
         # Map property names to flags
         prop_to_flag = {
-            'arch': self.constants['ARCH'],
-            'door': self.constants['DOOR'],
-            'locked': self.constants['LOCKED'],
-            'trapped': self.constants['TRAPPED'],
-            'secret': self.constants['SECRET'],
-            'portc': self.constants['PORTC'],
-            'stairs_up': self.constants['STAIR_UP'],
-            'stairs_down': self.constants['STAIR_DN']
+            'arch': self.ARCH,
+            'door': self.DOOR,
+            'locked': self.LOCKED,
+            'trapped': self.TRAPPED,
+            'secret': self.SECRET,
+            'portc': self.PORTC,
+            'stairs_up': self.STAIR_UP,
+            'stairs_down': self.STAIR_DN
         }
         
         if property not in prop_to_flag:

@@ -23,6 +23,7 @@ class DungeonStateNeo:
     LABEL = CELL_FLAGS['LABEL']
 
     def __init__(self, generator_result):
+        self.generator_result = generator_result
         self.n_cols = generator_result['n_cols']
         self.n_rows = generator_result['n_rows']
         
@@ -31,20 +32,29 @@ class DungeonStateNeo:
             width=self.n_cols + 1,
             height=self.n_rows + 1
         )
-        self._populate_grid(generator_result['grid'])
-        
-        # Create orientation lookups
+
+        # Initialize orientation lookups before _populate_grid
         self.door_orientations = {}
         for door in generator_result.get('doors', []):
+            #print(f"2a state door {door}")
             x, y = door['x'], door['y']
-            self.door_orientations[(x, y)] = door['orientation']
-        
+            orientation = door.get('orientation', 'horizontal')
+            self.door_orientations[(x, y)] = orientation
+            #print(f"2b state store ({x},{y}) = {orientation}")
+
+        # print("=== STATE DOOR ORIENTATIONS ===")
+        # for (x,y), orient in self.door_orientations.items():
+        #     print(f"({x},{y}): {orient}")
+
         self.stair_orientations = {}
-        # Store stairs as an attribute
         self.stairs = generator_result.get('stairs', [])
         for stair in self.stairs:
             x, y = stair['x'], stair['y']
-            self.stair_orientations[(x, y)] = stair.get('orientation', 'horizontal')
+            orientation = stair.get('orientation', 'horizontal')
+            self.stair_orientations[(x, y)] = orientation
+            #print(f"STORED: Stair at ({x},{y}) orientation={orientation}")
+
+        self._populate_grid(generator_result['grid'])
         
         # Initialize secret mask
         self.secret_mask = [[False] * self.grid_system.width for _ in range(self.grid_system.height)]
@@ -106,14 +116,29 @@ class DungeonStateNeo:
         return grid
 
     def _populate_grid(self, generator_grid):
-        """Populate grid with DungeonCellNeo objects"""
+        for door in self.generator_result.get('doors', []):
+            if door['key'] != 'potential':  # Only register actual doors
+                x, y = door['x'], door['y']
+                self.door_orientations[(x, y)] = door['orientation']
+        #print(f"POPULATE: door_orientations {self.door_orientations}")
         for y in range(self.grid_system.height):
+            # Ensure row exists
+            if y >= len(generator_grid):
+                continue
+                
             for x in range(self.grid_system.width):
-                try:
-                    value = generator_grid[y][x]
-                except (IndexError, TypeError):
-                    value = CELL_FLAGS['NOTHING']
+                # Ensure column exists in row
+                if x >= len(generator_grid[y]):
+                    continue  # Skip missing columns
+                    
+                value = generator_grid[y][x]
                 cell = DungeonCellNeo(value, x, y)
+                
+                if cell.is_door and (x, y) in self.door_orientations:
+                    orientation = self.door_orientations[(x, y)]
+                    cell.properties['orientation'] = orientation
+                    #print(f"CELL INIT: Door at ({x},{y}) orientation={orientation}")
+
                 self.grid_system.set_cell(x, y, cell)
 
     @property
@@ -141,10 +166,16 @@ class DungeonStateNeo:
             return self.grid_system.get_cell(x, y)
     
     def get_door_orientation(self, x: int, y: int):
-        return self.door_orientations.get((x, y), 'horizontal')
+        orientations = self.door_orientations.get((x, y), 'horizontal')
+        #print(f"orientations in state: {orientations}")
+        return orientations
     
     def get_stair_orientation(self, x: int, y: int):
-        return self.stair_orientations.get((x, y), 'horizontal')
+        #print(f"RENDERER request: ({x},{y})") # this goes with "GENERATOR stair" debug print if you want to see if they match but fixed
+        #print(f"Stored orientations: {list(self.stair_orientations.keys())}")
+        result = self.stair_orientations.get((x, y), 'horizontal')
+        #print(f"returns {result}")
+        return result
     
     def reveal_secret(self, x: int, y: int):
         if self.grid_system.is_valid_position(x, y):

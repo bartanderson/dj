@@ -168,6 +168,16 @@ class DungeonGeneratorNeo:
             self.emplace_stairs()
                 
         self.clean_dungeon()
+
+        # NEW: Clean stray door flags
+        for r in range(len(self.cell)):
+            for c in range(len(self.cell[r])):
+                if self.cell[r][c] & self.DOORSPACE:
+                    # Check if door is registered
+                    if not any(d['x'] == c and d['y'] == r for d in self.doorList):
+                        #print(f"Cleaning stray door at ({c},{r})")
+                        self.cell[r][c] &= ~self.DOORSPACE  # Remove door flags
+                        self.cell[r][c] |= self.ENTRANCE  # Keep as regular entrance
         
         # Before returning, ensure all grid values are integers
         for x in range(len(self.cell)):
@@ -195,7 +205,7 @@ class DungeonGeneratorNeo:
             # Convert to standardized coordinate system
             doors.append({
                 'x': door['x'],  # column = horizontal position
-                'y': door['x'],  # row = vertical position
+                'y': door['y'],  # row = vertical position
                 'orientation': door.get('orientation', 'horizontal'),
                 'key': door.get('key', 'door'),
                 'out_id': door.get('out_id')
@@ -217,7 +227,7 @@ class DungeonGeneratorNeo:
             })
 
         self.fill_blocks() # set blocked which cannot be traveled through.
-        
+        #print(f"Cell (6,5) flags: {hex(self.cell[5][6])}")  # [row][col]        
         return {
             'grid': self.cell,
             'stairs': stairs,
@@ -410,6 +420,10 @@ class DungeonGeneratorNeo:
         if not hasattr(self, 'connect'):
             self.connect = {}
         
+        # Initialize master door list if it doesn't exist
+        if not hasattr(self, 'all_doors'):
+            self.all_doors = []
+        
         for _ in range(n_opens):
             if not sills:
                 break
@@ -435,44 +449,21 @@ class DungeonGeneratorNeo:
                 self.cell[r][c] &= ~self.PERIMETER
                 self.cell[r][c] |= self.ENTRANCE
 
-            # print(f"Door at ({door_r},{door_c}) - open_dir: {open_dir}")
-            # print(f"Adjacent cells:")
-            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
-                nr, nc = door_r + dr, door_c + dc
-                cell_type = "BLOCKED" if self.cell[nr][nc] & self.BLOCKED else "OPEN"
-                #print(f"  ({nr},{nc}): {cell_type}")
-
-            # DETERMINE DOOR ORIENTATION ===========================
-            # Default to perpendicular to wall direction
-            orientation = 'horizontal' if sill['dir'] in ['east', 'west'] else 'vertical'
-            
-            # Check adjacent cells to confirm open space
-            if sill['dir'] in ['north', 'south']:
-                # Horizontal door needs open space left/right
-                if (self.has_open_space(door_r, door_c-1) and 
-                    self.has_open_space(door_r, door_c+1)):
-                    orientation = 'horizontal'
-                else:
-                    orientation = 'vertical'
-            else:
-                # Vertical door needs open space above/below
-                if (self.has_open_space(door_r-1, door_c) and 
-                    self.has_open_space(door_r+1, door_c)):
-                    orientation = 'vertical'
-                else:
-                    orientation = 'horizontal'
-            # ======================================================
-            #print(f"Setting orientation: {orientation}")
+            # DETERMINE DOOR ORIENTATION
+            orientation = 'vertical' if sill['dir'] in ['east', 'west'] else 'horizontal'
+            #print(f"1 generate: {orientation} global_x:{door_c} global_y:{door_r}")
             
             door_type = self.door_type()
+            
+            # Create door with GLOBAL coordinates
             door = {
-                'x': door_c,  # horizontal position
-                'y': door_r,  # vertical position
+                'x': door_c,  # horizontal position (global)
+                'y': door_r,  # vertical position (global)
                 'orientation': orientation,
                 'key': door_type
             }
-
             
+            # Apply door flags
             if door_type == self.ARCH:
                 self.cell[door_r][door_c] |= self.ARCH
                 door['key'] = 'arch'
@@ -495,9 +486,23 @@ class DungeonGeneratorNeo:
             if 'out_id' in sill:
                 door['out_id'] = sill['out_id']
             
+            # Add to master list
+            self.all_doors.append(door)
+            
+            # Also add to room's door list
             if open_dir not in room['door']:
                 room['door'][open_dir] = []
             room['door'][open_dir].append(door)
+
+        # # NEW: Register ALL valid sills, not just selected ones
+        # for sill in sills:
+        #     x, y = sill['door_c'], sill['door_r']
+        #     orientation = 'vertical' if sill['dir'] in ['north','south'] else 'horizontal'
+        #     self.all_doors.append({
+        #         'x': x, 'y': y,
+        #         'orientation': orientation,
+        #         'key': 'potential'  # Flag for unselected doors
+        #     })
 
     def alloc_opens(self, room):
         room_h = ((room['south'] - room['north']) // 2) + 1
@@ -740,6 +745,10 @@ class DungeonGeneratorNeo:
                     }    
                 
                 self.stairList.append(stair)
+        if False:   # debug output you can turn on for identifying stair position for orientation fix      
+            for stair in self.stairList:
+                print(f"GENERATOR stair: pos=({stair['x']},{stair['y']}) "
+                      f"orientation={stair['orientation']}")
 
     def stair_ends(self):
         ends = []
@@ -755,12 +764,12 @@ class DungeonGeneratorNeo:
                 for dir, config in self.stair_end.items():
                     if self.check_tunnel(self.cell, r, c, config):
                         next_vec = config['next']  # This is what matters
-                        orientation = 'horizontal' if next_vec[0] != 0 else 'vertical'                  
+                        orientation = 'horizontal' if next_vec[0] != 0 else 'vertical' # orientation of stair                
                         end = {
                             'y': c,  # column = horizontal position
                             'x': r,  # row = vertical position
-                            'dx': next_vec[0],  # horizontal direction invert movement to end
-                            'dy': next_vec[1],  # vertical direction invert movement to end
+                            'dx': next_vec[0],  # horizontal direction
+                            'dy': next_vec[1],  # vertical direction
                             'orientation': orientation
                         }
                         ends.append(end)
@@ -859,32 +868,67 @@ class DungeonGeneratorNeo:
                     return False
         return True
 
+
     def fix_doors(self):
         fixed = [[False] * (self.opts['n_cols'] + 1) for _ in range(self.opts['n_rows'] + 1)]
-        self.doorList = []
+        self.doorList = []  # We'll rebuild this from all_doors
+        
+        # Create a position map for quick lookup
+        position_map = {}
+        for door in self.all_doors:
+            pos = (door['x'], door['y'])
+            position_map[pos] = door
         
         for room in self.room:
             for dir, doors in room['door'].items():
                 shiny = []
                 for door in doors:
-                    r, c = door['y'], door['x']
-                    if not (self.cell[r][c] & (self.ROOM | self.CORRIDOR)):
+                    x, y = door['x'], door['y']
+                    
+                    if not (0 <= y < len(self.cell) and 0 <= x < len(self.cell[0])):
+                        continue
+                        
+                    if not (self.cell[y][x] & (self.ROOM | self.CORRIDOR)):
                         continue
                     
-                    if fixed[r][c]:
+                    if fixed[y][x]:
                         shiny.append(door)
                         continue
                     
-                    fixed[r][c] = True
-                    if 'out_id' in door and door['out_id'] is not None:
-                        out_dir = self.opposite[dir]
-                        out_room = self.room[door['out_id'] - 1]
-                        if out_dir not in out_room['door']:
-                            out_room['door'][out_dir] = []
-                        out_room['door'][out_dir].append(door)
+                    fixed[y][x] = True
                     
-                    shiny.append(door)
-                    self.doorList.append(door)
+                    # Get the original door from master list
+                    original_door = position_map.get((x, y))
+                    if original_door:
+                        # Preserve original orientation
+                        orientation = original_door.get('orientation', 'horizontal')
+                        key = original_door.get('key', 'door')
+                    else:
+                        # Fallback to door data
+                        orientation = door.get('orientation', 'horizontal')
+                        key = door.get('key', 'door')
+                    
+                    # Create new door with preserved orientation
+                    new_door = {
+                        'x': x,
+                        'y': y,
+                        'orientation': orientation,
+                        'key': key,
+                        'out_id': door.get('out_id')
+                    }
+                    
+                    shiny.append(new_door)
+                    self.doorList.append(new_door)
+                    
+                    # Update opposite room if needed
+                    if 'out_id' in door and door['out_id'] is not None:
+                        out_id = door['out_id']
+                        out_room = next((r for r in self.room if r['id'] == out_id), None)
+                        if out_room:
+                            out_dir = self.opposite[dir]
+                            if out_dir not in out_room['door']:
+                                out_room['door'][out_dir] = []
+                            out_room['door'][out_dir].append(new_door)
                 
                 room['door'][dir] = shiny
 

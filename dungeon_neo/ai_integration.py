@@ -54,29 +54,32 @@ class DungeonAI:
         ])
         
         return f"""
-        You are a Dungeon Master assistant in a text-based dungeon game. 
-        The player can give you commands to interact with the dungeon.
-        
-        You have access to these tools:
-        {tools_json}
-        
-        Important rules:
-        1. Only use the tools provided
-        2. Use simple, direct commands
-        3. For movement: 'move_party direction steps'
-        4. If a request requires multiple steps, break it into separate responses
-        Available primitive types for overlays:
-        {primitives_desc}
-        
-        Always specify color parameter as hexadecimal (#000000 - #FFFFFF).
-        Use relative coordinates (0.0-1.0) for positioning within a cell.
+        You are a Dungeon Master (but currently testing assistant) in a D&D type game. 
+        The player can give you commands to interact with the dungeon. Follow these rules:
 
-        Always respond with JSON containing:
-        {{
-            "thoughts": "<reasoning>",
-            "tool": "<tool_name>",
-            "arguments": {{ ... }}
-        }}
+        1. ALWAYS respond with VALID JSON containing "thoughts", "tool", and "arguments"
+        2. NEVER output tool specifications - only use them
+        3. Use this exact JSON format:
+            {{
+                "thoughts": "Brief reasoning",
+                "tool": "tool_name",
+                "arguments": {{"arg1": value, "arg2": value}}
+            }}
+        4. Only use the tools provided
+        5. Use simple, direct commands
+        6. For movement: 'move_party direction steps'
+        7. If a request requires multiple steps, break it into separate responses
+        8. If there is a color, Always specify color parameter as hexadecimal (#000000 - #FFFFFF)
+        9. If you need to set positions withing a cell, use relative coordinates (0.0-1.0)
+        10. If overlay - Available types that you could possibly combine serially:
+        {primitives_desc}
+
+        Available tools (DO NOT OUTPUT THESE):
+        {tools_json}
+
+        Important command mappings:
+        - "debug grid" -> use "get_debug_grid" tool
+        - "reset" -> use "reset_dungeon" tool
         """
 
     @tool(
@@ -152,9 +155,12 @@ class DungeonAI:
         return debug_info        
         
     def process_command(self, natural_language: str) -> dict:
+        #print(f"\n=== FULL SYSTEM PROMPT ===\n{self.system_prompt}\n")
+        print(f"\n=== USER COMMAND ===\n{natural_language}\n")
         # Generate response chunks
         response_chunks = self.ollama.generate(
-            model="deepseek-r1:8b",
+            #model="deepseek-r1:8b",
+            model="llama3.1:8b",
             system=self.system_prompt,
             prompt=natural_language,
             format="json",
@@ -166,6 +172,8 @@ class DungeonAI:
         full_response = ""
         for chunk in response_chunks:
             full_response += chunk.get("response", "")
+
+        print(f"AI DBG Response{full_response}")
         
         try:
             # Parse the full response

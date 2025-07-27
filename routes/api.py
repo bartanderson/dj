@@ -2,24 +2,23 @@ from flask import Blueprint, jsonify, current_app, send_file, request
 import io
 from dungeon_neo.constants import *
 from dungeon_neo.ai_integration import DungeonAI
-
+from dungeon_neo.movement_service import MovementService
 
 api_bp = Blueprint('api', __name__)
 
+
+
+# Unified movement endpoint -- buttons use this
 @api_bp.route('/move', methods=['POST'])
 def handle_movement():
-    """Unified movement endpoint for all movement types"""
     data = request.json
     direction = data.get('direction')
     steps = data.get('steps', 1)
     
     try:
         game_state = current_app.game_state
+        # Access movement service directly
         result = game_state.dungeon.state.movement.move(direction, steps)
-        
-        if result["success"]:
-            game_state.dungeon.update_visibility()
-        
         return jsonify(result)
     
     except Exception as e:

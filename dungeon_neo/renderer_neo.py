@@ -87,7 +87,7 @@ class DungeonRendererNeo:
         self._draw_grid(base_draw, width, height)
         
         # DEBUG: Draw red dot at party position
-        party_x, party_y = state.party_position
+        party_y, party_x = state.party_position
         base_draw.ellipse([
             party_y*cs + cs//3,
             party_x*cs + cs//3,
@@ -96,7 +96,6 @@ class DungeonRendererNeo:
         ], fill="red")
 
         print(f"Rendering dungeon at size {width}x{height}")
-        print(f"Party position why is it coming out x/y flipped here?: {state.party_position}")
 
         visible_count = 0
 
@@ -107,8 +106,8 @@ class DungeonRendererNeo:
             for y in range(state.height):
             
                 cell = state.get_cell(x, y)
-                x_pix = y * cs
-                y_pix = x * cs
+                x_pix = x * cs
+                y_pix = y * cs
 
                 is_visible = visibility_system and visibility_system.is_visible(x, y)
                 
@@ -123,7 +122,8 @@ class DungeonRendererNeo:
                         if debug_show_all:
                             # Debug view: show door overlay
                             base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
-                            self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                            orientation = state.door_orientations.get((x, y), 'horizontal')
+                            self._draw_door(base_draw, x_pix, y_pix, cell, orientation)
                             # Add red outline
                             base_draw.rectangle(
                                 [x_pix, y_pix, x_pix+cs, y_pix+cs],
@@ -138,7 +138,8 @@ class DungeonRendererNeo:
                     else:
                         # Discovered secret
                         base_draw.rectangle([x_pix, y_pix, x_pix+cs, y_pix+cs], fill=self.COLORS['corridor'])
-                        self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                        orientation = state.door_orientations.get((x, y), 'horizontal') 
+                        self._draw_door(base_draw, x_pix, y_pix, cell, orientation)
                         if debug_show_all:
                             # Add red outline in debug mode
                             base_draw.rectangle(
@@ -166,8 +167,11 @@ class DungeonRendererNeo:
                 
                 # Draw doors
                 if cell.is_door:
-                    orientation = state.get_door_orientation(cell.x, cell.y)
-                    self._draw_door(base_draw, x_pix, y_pix, cell, state)
+                    # Get orientation directly from state dictionary
+                    orientation = state.get_door_orientation(x, y)
+                    #print(f"RENDERER: Door at ({x},{y}) orientation={orientation}")                                
+                    # Pass orientation to drawing function
+                    self._draw_door(base_draw, x_pix, y_pix, cell, orientation)
                 
                 # Draw stairs
                 if cell.is_stairs:
@@ -231,7 +235,7 @@ class DungeonRendererNeo:
                         visited_count += 1
                         # Make this cell transparent in fog layer
                         fog_draw.rectangle(
-                            [y*cs, x*cs, (y+1)*cs, (x+1)*cs], # swapping x and y
+                            [x*cs, y*cs, (x+1)*cs, (y+1)*cs], # swapping x and y
                             fill=(0, 0, 0, 0)  # Fully transparent
                         )
             # this allowed me to prove I could cut a hole in the fog
@@ -328,21 +332,9 @@ class DungeonRendererNeo:
         cell = self.state.grid[r][c]
         return cell and (cell.is_room or cell.is_corridor)
     
-    def _draw_door(self, draw, x, y, cell, state, size=None):
+    def _draw_door(self, draw, x, y, cell, orientation, size=None):
         """Draw door with consistent appearance at any scale"""
         size = size or self.cell_size
-        rev_orientation = 'vertical'
-        # Get reversed orientation from state
-        if state:
-            rev_orientation = state.get_door_orientation(cell.x, cell.y)
-
-        # Reverse all orientations
-        if rev_orientation == 'horizontal':
-            orientation = 'vertical'
-        else:
-            orientation = 'horizontal'
-
-        #print(f"Rendering door at ({cell.x},{cell.y}) with orientation: {orientation}")
 
         # Determine door type from cell properties
         if cell.is_arch: door_type = 'arch'
@@ -545,7 +537,7 @@ class DungeonRendererNeo:
                 })
                 # Draw on corridor background
                 self._draw_corridor(draw, margin, margin, cell_size)
-                self._draw_door(draw, margin, margin, mock_cell, mock_state, cell_size)
+                self._draw_door(draw, margin, margin, mock_cell, 'horizontal', cell_size)
             elif element == 'secret':
                 # Normal secret door
                 self._draw_block(draw, margin, margin, cell_size)
@@ -561,7 +553,7 @@ class DungeonRendererNeo:
                     'x': 0,
                     'y': 0
                 })
-                self._draw_door(draw, margin, margin, mock_cell, mock_state, cell_size)
+                self._draw_door(draw, margin, margin, mock_cell, 'horizontal', cell_size)
                 # Add red outline
                 draw.rectangle(
                     [margin, margin, margin+cell_size, margin+cell_size],

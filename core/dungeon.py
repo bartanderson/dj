@@ -76,8 +76,8 @@ class DungeonSystem:
         # Finally create movement service
         self.state.movement = MovementService(self.state)
         
-        print(f"Generated dungeon: {self.state.width}x{self.state.height}")
-        print(f"Initial party position: {self.state.party_position}")
+        #print(f"Generated dungeon: {self.state.width}x{self.state.height}")
+        #print(f"Initial party position: {self.state.party_position}")
 
     def _set_initial_party_position(self):
         """Set initial party position near first up stair"""
@@ -100,9 +100,9 @@ class DungeonSystem:
             return
         else:
             stair = up_stairs[0]
-            party_x = stair['y'] + stair['dy']
-            party_y = stair['x'] + stair['dx']
-            self.state.party_position = (party_x, party_y)
+            party_y = stair['y'] + stair['dy']
+            party_x = stair['x'] + stair['dx']
+            self.state.party_position = (party_y, party_x)
                     
     def is_blocked_for_movement(self, cell):
         """Simplified blocking logic"""
