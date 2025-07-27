@@ -10,6 +10,7 @@ May have to work up to the next part because I simplified things to get them to 
 [x] Get Fog Of War implemented, right now its all clear so the dungeon shows through.
 [x] Still need to fix it so it uses line of sight blocking.
 [x] Need to fix rendering of secret door in masked mode. shows as corridor I think but should show as wall.
+[x] DM can now change doors with create_door tool allowing movement through arch
 [] Maybe add more manipulation of dungeon for DM to draw random things but maybe that is just a wish or I can generate a bunch for him to use. But don't let details bog you down so maybe for later.
 [] Might be nice to add open door and switch door from regular look to open door. Locked would change to regular door. Opened door would swing inward or outward maybe randomize? Portcullis becomes arch when open. Again maybe these are enhancements when I get farther along. Love to get this buttoned up a little so we can add AI back.
 [] Take a look at AI DM apis.txt located top left portion of desktop with suggestions from AI about integrating some DM tools to keep it simple.
@@ -17,13 +18,13 @@ May have to work up to the next part because I simplified things to get them to 
 
 Split DungeonGenerator into:
 
-LayoutGenerator (room/corridor algorithms)
+[x]LayoutGenerator (room/corridor algorithms) - leaving this as is becauase its fairly fragile to mess with
 
-FeaturePlacer (puzzles/traps/monsters)
+[]FeaturePlacer (puzzles/traps/monsters)
 
-DungeonBuilder (orchestration facade)
+[]DungeonBuilder (orchestration facade) - not sure if this is worth doing as fragile as some of this is. lets call it a todo maybe some day
 
-Preserve AI integration points (puzzle creation, content generation)
+[]Preserve AI integration points (puzzle creation, content generation)
 
 [x]State Management Unification - I think I accomplished this by my previous simplifications
 
@@ -35,19 +36,19 @@ Agent Refactoring
 
 Break EnhancedDMAgent into:
 
-CommandParser (natural language processing)
+[x]CommandParser (natural language processing) commands and tools workish, need to maybe fix some but happy so far
 
-ActionExecutor (tool execution)
+[x]ActionExecutor (tool execution)
 
 ContentGenerator (dynamic content creation)
 
-Tool Registry System
+[x]Tool Registry System
 
-Complete tool interface definitions
+[x]Complete tool interface definitions
 
 Implement versioning for AI tools
 
-Add tool dependency management
+[]Add tool dependency management
 
 Puzzle System Upgrade
 
