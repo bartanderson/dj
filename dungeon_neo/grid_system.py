@@ -18,14 +18,6 @@ class GridSystem:
     def is_valid_position(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
     
-    def world_to_pixel(self, x: int, y: int, cell_size: int) -> tuple:
-        """Convert world coordinates to pixel coordinates"""
-        return (x * cell_size, y * cell_size)
-    
-    def pixel_to_world(self, pixel_x: int, pixel_y: int, cell_size: int) -> tuple:
-        """Convert pixel coordinates to world coordinates"""
-        return (pixel_x // cell_size, pixel_y // cell_size)
-    
     def get_neighbors(self, x: int, y: int, directions: list) -> list:
         """Get valid neighbor positions in specified directions"""
         neighbors = []

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>World Explorer</title>
+    <link rel="stylesheet" href="world.css">
+</head>
+<body>
+    <div class="world-container">
+        <!-- World Map Display -->
+        <div class="world-map" id="world-map">
+            <!-- Generated world map will appear here -->
+        </div>
+        
+        <!-- Location Details Panel -->
+        <div class="location-panel">
+            <div class="location-image" id="location-image"></div>
+            <div class="location-description" id="location-description"></div>
+            <div class="location-actions">
+                <button id="explore-location">Explore</button>
+                <button id="talk-to-npcs">Talk to NPCs</button>
+                <button id="manage-inventory">Inventory</button>
+                <button id="enter-dungeon">Enter Dungeon</button>
+            </div>
+        </div>
+        
+        <!-- Character Management -->
+        <div class="character-manager">
+            <h3>Your Party</h3>
+            <div id="party-members"></div>
+            <button id="create-character">Create Character</button>
+            <button id="manage-party">Manage Party</button>
+        </div>
+        
+        <!-- Quest Log -->
+        <div class="quest-log">
+            <h3>Active Quests</h3>
+            <ul id="quest-list"></ul>
+        </div>
+    </div>
+    
+    <script src="world.js"></script>
+</body>
+</html>

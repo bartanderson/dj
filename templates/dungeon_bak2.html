@@ -224,7 +224,6 @@
             background: #0f3460;
         }
     </style>
-
 </head>
 <body>
     <div class="app-container">
@@ -232,24 +231,31 @@
         <div class="map-container">
             <div class="controls">
                 <div class="direction-buttons">
+                    <!-- Row 1: Northwest, North, Northeast -->
                     <button id="northwest">↖ NW</button>
                     <button id="north">↑ North</button>
                     <button id="northeast">↗ NE</button>
+                    
+                    <!-- Row 2: West, Wait, East -->
                     <button id="west">← West</button>
                     <button id="wait">Wait</button>
                     <button id="east">East →</button>
+                    
+                    <!-- Row 3: Southwest, South, Southeast -->
                     <button id="southwest">↙ SW</button>
                     <button id="south">↓ South</button>
                     <button id="southeast">↘ SE</button>
                 </div>
-                
                 <div class="debug-controls">
                     <button id="debug-toggle">Toggle Debug View</button>
                     <button id="reset">Generate New Dungeon</button>
-                    <button id="debug-grid">Debug Grid</button>
+                    <button id="debug-state">Debug State</button>
                 </div>
-            </div>
+             </div>
+            
+           
             <img id="dungeon-map" src="" alt="Dungeon Map">
+            
             <div class="position-info">
                 <p>Position: <span id="position">(?, ?)</span></p>
             </div>
@@ -257,6 +263,58 @@
         
         <!-- Chat Sidebar -->
         <div class="sidebar">
+            <div class="character-management">
+                <h3>Your Characters</h3>
+                <button @click="createCharacter">+ New Character</button>
+                
+                <div class="character-list">
+                    <div v-for="char in userCharacters" 
+                         :class="['character-card', {active: char.active}]"
+                         @click="setActiveCharacter(char.id)">
+                        <div class="char-name">{{ char.name }}</div>
+                        <div class="char-status">
+                            <span v-if="char.active">Active</span>
+                            <span v-else>Inactive</span>
+                        </div>
+                        <button @click="deleteCharacter(char.id)" 
+                                class="delete-char">Delete</button>
+                    </div>
+                </div>
+                
+                <div v-if="activeCharacter" class="active-character-panel">
+                    <h4>Active: {{ activeCharacter.name }}</h4>
+                    <div class="party-controls">
+                        <h3>Party Management</h3>
+                        <div v-if="userCharacter">
+                            <div v-if="userCharacter.party">
+                                <h4>Party Members</h4>
+                                <div v-for="member in partyMembers" class="party-member">
+                                    <span :class="{leader: member.isLeader}">
+                                        {{ member.name }} 
+                                        <span v-if="member.isLeader">(Leader)</span>
+                                    </span>
+                                    <button v-if="isPartyLeader && !member.isLeader" 
+                                            @click="transferLeadership(member.id)">
+                                        Make Leader
+                                    </button>
+                                </div>
+                                <button @click="leaveParty">Leave Party</button>
+                            </div>
+                            <div v-else>
+                                <button @click="createParty">Form New Party</button>
+                                <div v-if="availableParties.length">
+                                    <h4>Join Existing Party:</h4>
+                                    <div v-for="party in availableParties" class="party-option">
+                                        Leader: {{ getCharacterName(party.leader) }}
+                                        <button @click="joinParty(party.id)">Join</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
             <div class="character-panel">
                 <h3>Characters</h3>
                 <button id="create-character">Create New</button>
@@ -281,7 +339,7 @@
                     </div>
                     <div>
                     <textarea id="chat-text" 
-                              placeholder="Tell the AI what to do..."
+                              placeholder="Tell the AI what to do (e.g., 'Move party west 3 spaces', 'Add a treasure chest here', 'Describe this room as bloody')"
                               rows="3"></textarea>
                     </div>
                 </div>
@@ -294,12 +352,18 @@
         let debugMode = false;
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-text');
-        const state = {
-            user: { id: null, name: "Guest" },
-            characters: [],
-            activeCharacter: null
-        };
 
+        // State object
+        const state = {
+            user: {
+                id: null,
+                name: "Guest"
+            },
+            characters: [],
+            parties: [],
+            userCharacter: null
+        };
+                
         // Initialize the map
         function updateMap() {
             const map = document.getElementById('dungeon-map');
@@ -331,18 +395,22 @@
             });
         }
 
+        
         // Function to send chat messages
         function sendChat() {
             const message = chatInput.value.trim();
             if (!message) return;
             
+            // Add user message to chat
             addToChatLog(message, 'user');
             chatInput.value = '';
             
+            // Disable send button during processing
             const sendBtn = document.getElementById('send-chat');
             sendBtn.disabled = true;
             sendBtn.textContent = 'Sending...';
             
+            // Send to AI command processor
             fetch('/api/ai-command', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -354,10 +422,17 @@
                     addToChatLog(`AI: ${data.message}`, 'ai');
                     updateMap();
                 } else {
+                    // Enhanced error display
                     let errorMsg = `Error: ${data.message}`;
+                    
+                    if (data.traceback) {
+                        errorMsg += `\n\nTechnical Details:\n${data.traceback}`;
+                    }
+                    
                     if (data.ai_response) {
                         errorMsg += `\n\nAI Response:\n${data.ai_response}`;
                     }
+                    
                     addToChatLog(errorMsg, 'error');
                 }
             })
@@ -369,17 +444,18 @@
                 sendBtn.textContent = 'Send';
             });
         }
-        
+                
         // Add messages to chat log
         function addToChatLog(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender);
             messageDiv.textContent = text;
             chatLog.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom
             chatLog.scrollTop = chatLog.scrollHeight;
         }
 
-        // Movement controls setup
         function initMovementControls() {
             // Setup direction buttons
             const directions = [
@@ -389,24 +465,38 @@
             
             directions.forEach(dir => {
                 const btn = document.getElementById(dir);
-                if (btn) btn.addEventListener('click', () => move(dir));
+                if (btn) {
+                    btn.addEventListener('click', () => move(dir));
+                }
             });
             
             // Setup wait button
-            document.getElementById('wait').addEventListener('click', () => {
-                addToChatLog("Party waits and observes", 'system');
-                updateMap();
-            });
+            const waitBtn = document.getElementById('wait');
+            if (waitBtn) {
+                waitBtn.addEventListener('click', () => {
+                    addToChatLog("Party waits and observes", 'system');
+                    updateMap();  // Refresh visibility
+                });
+            }
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                
+                // Add this check to ignore when focused on input/textarea
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
                 const key = e.key.toLowerCase();
                 const mapping = {
-                    'w': 'north', 's': 'south', 'a': 'west', 'd': 'east',
-                    'q': 'northwest', 'e': 'northeast', 'z': 'southwest', 'c': 'southeast',
-                    'x': 'south', ' ': 'wait'
+                    'w': 'north',
+                    's': 'south',
+                    'a': 'west',
+                    'd': 'east',
+                    'q': 'northwest',
+                    'e': 'northeast',
+                    'z': 'southwest',
+                    'c': 'southeast',
+                    'x': 'south',
+                    ' ': 'wait'  // Space for wait
                 };
                 
                 if (mapping[key]) {
@@ -416,12 +506,55 @@
                     } else {
                         move(mapping[key]);
                     }
-                    e.preventDefault();
+                    e.preventDefault();  // Prevent scrolling on space
                 }
             });
         }
 
-        // Character creation
+
+        document.getElementById('debug-grid').addEventListener('click', () => {
+            fetch('/api/ai-command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: "!debug grid"})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const filename = data.filename || 'dungeon_debug.txt';
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = `/api/download-debug?file=${filename}`;
+                    downloadLink.textContent = 'Download Dungeon Debug Grid';
+                    downloadLink.download = filename;
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('message', 'system');
+                    messageDiv.innerHTML = `Debug grid saved!<br>`;
+                    messageDiv.appendChild(downloadLink);
+                    
+                    chatLog.appendChild(messageDiv);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                } else {
+                    addToChatLog(`Error: ${data.message}`, 'error');
+                }
+            });
+        });
+
+        
+        document.getElementById('debug-toggle').addEventListener('click', () => {
+            debugMode = !debugMode;
+            updateMap();
+        });
+        
+        document.getElementById('send-chat').addEventListener('click', sendChat);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        });
+
+        // Character creation function
         function createCharacter() {
             const name = prompt("Enter character name:");
             if (!name) return;
@@ -434,15 +567,28 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    state.characters.push(data.character);
-                    renderCharacterList();
+                    // Add to UI
+                    const charList = document.getElementById('character-list');
+                    const charCard = document.createElement('div');
+                    charCard.className = 'character-card';
+                    charCard.innerHTML = `
+                        <div class="char-name">${data.character.name}</div>
+                        <div class="char-id">ID: ${data.character.id}</div>
+                        <button class="select-char" data-id="${data.character.id}">Select</button>
+                    `;
+                    charList.appendChild(charCard);
+                    
+                    // Add select listener
+                    charCard.querySelector('.select-char').addEventListener('click', function() {
+                        selectCharacter(this.getAttribute('data-id'));
+                    });
                 }
             });
         }
 
-        // Set active character
+        // Character selection function
         function selectCharacter(charId) {
-            fetch('/api/character/set-active', {
+            fetch('/api/character/select', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -453,78 +599,24 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update state
-                    state.activeCharacter = state.characters.find(c => c.id === charId);
-                    
                     // Update UI
                     document.querySelectorAll('.character-card').forEach(card => {
                         card.classList.remove('selected');
                     });
                     
-                    const selectedCard = document.querySelector(`.character-card[data-id="${charId}"]`);
-                    if (selectedCard) selectedCard.classList.add('selected');
+                    // Highlight selected character
+                    const selectedCard = document.querySelector(`.select-char[data-id="${charId}"]`).closest('.character-card');
+                    selectedCard.classList.add('selected');
                     
                     // Update position display
-                    if (state.activeCharacter) {
-                        document.getElementById('position').textContent = 
-                            `${state.activeCharacter.position[0]}, ${state.activeCharacter.position[1]}`;
-                    }
+                    document.getElementById('position').textContent = 
+                        `${data.character.position[0]}, ${data.character.position[1]}`;
                 }
             });
         }
 
-        // Delete character
-        function deleteCharacter(charId) {
-            if (!confirm("Delete this character permanently?")) return;
-            
-            fetch('/api/character/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ character_id: charId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    state.characters = state.characters.filter(c => c.id !== charId);
-                    if (state.activeCharacter?.id === charId) state.activeCharacter = null;
-                    renderCharacterList();
-                }
-            });
-        }
-
-        // Render character list
-        function renderCharacterList() {
-            const charList = document.getElementById('character-list');
-            charList.innerHTML = '';
-            
-            state.characters.forEach(char => {
-                const charCard = document.createElement('div');
-                charCard.className = 'character-card';
-                if (state.activeCharacter?.id === char.id) charCard.classList.add('selected');
-                charCard.dataset.id = char.id;
-                
-                charCard.innerHTML = `
-                    <div class="char-name">${char.name}</div>
-                    <div class="char-id">ID: ${char.id}</div>
-                    <div class="char-status">${char.active ? 'Active' : 'Inactive'}</div>
-                    <button class="select-char">Select</button>
-                    <button class="delete-char">Delete</button>
-                `;
-                
-                charCard.querySelector('.select-char').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    selectCharacter(char.id);
-                });
-                
-                charCard.querySelector('.delete-char').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteCharacter(char.id);
-                });
-                
-                charCard.addEventListener('click', () => selectCharacter(char.id));
-                charList.appendChild(charCard);
-            });
-        }
+        // Add event listener to create button
+        document.getElementById('create-character').addEventListener('click', createCharacter);
 
         // Generate session ID
         function getSessionId() {
@@ -536,69 +628,150 @@
             return id;
         }
 
-        // Load user info
-        function loadUser() {
-            fetch('/api/user-info')
-            .then(response => response.json())
-            .then(data => {
-                state.user = {
-                    id: data.user_id,
-                    name: data.username
-                };
-            });
-        }
-
-        // Load characters
+        // Load existing characters on page load
         function loadCharacters() {
             fetch('/api/character/list')
             .then(response => response.json())
             .then(data => {
-                state.characters = data.characters;
-                renderCharacterList();
+                const charList = document.getElementById('character-list');
+                data.characters.forEach(char => {
+                    const charCard = document.createElement('div');
+                    charCard.className = 'character-card';
+                    charCard.innerHTML = `
+                        <div class="char-name">${char.name}</div>
+                        <div class="char-id">ID: ${char.id}</div>
+                        <button class="select-char" data-id="${char.id}">Select</button>
+                    `;
+                    charList.appendChild(charCard);
+                    
+                    // Add select listener
+                    charCard.querySelector('.select-char').addEventListener('click', function() {
+                        selectCharacter(this.getAttribute('data-id'));
+                    });
+                });
             });
         }
 
-        // Initialize
-        window.addEventListener('load', () => {
-            loadUser();
-            loadCharacters();
-            updateMap();
-            initMovementControls();
+        // Load user info on start
+        function loadUser() {
+            fetch('/api/user-info')
+            .then(response => response.json())
+            .then(data => {
+                state.user = data;
+                loadUserCharacter();
+            });
+        }
+
+        // Find character owned by current user
+        function loadUserCharacter() {
+            fetch('/api/character/list')
+            .then(response => response.json())
+            .then(data => {
+                state.characters = data.characters;
+                state.userCharacter = data.characters.find(
+                    c => c.owner_id === state.user.id
+                );
+                loadParties();
+            });
+        }
+
+        // Load all parties
+        function loadParties() {
+            fetch('/api/party/list')
+            .then(response => response.json())
+            .then(data => {
+                state.parties = data.parties;
+            });
+        }
+
+        // Create new character
+        function createCharacter() {
+            const name = prompt("Enter character name:");
+            if (!name) return;
             
-            // Setup event listeners
-            document.getElementById('create-character').addEventListener('click', createCharacter);
-            document.getElementById('debug-toggle').addEventListener('click', () => {
-                debugMode = !debugMode;
-                updateMap();
-            });
-            document.getElementById('reset').addEventListener('click', () => {
-                fetch('/api/reset', { method: 'POST' })
-                .then(() => updateMap());
-            });
-            document.getElementById('send-chat').addEventListener('click', sendChat);
-            document.getElementById('debug-grid').addEventListener('click', () => {
-                fetch('/api/ai-command', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({command: "!debug grid"})
+            fetch('/api/character/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name })
+            }).then(loadUserCharacter);
+        }
+
+        // Create new party
+        function createParty() {
+            if (!state.userCharacter) return;
+            
+            fetch('/api/party/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ character_id: state.userCharacter.id })
+            }).then(loadParties);
+        }
+
+        // Join existing party
+        function joinParty(partyId) {
+            if (!state.userCharacter) return;
+            
+            fetch('/api/party/join', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    character_id: state.userCharacter.id,
+                    party_id: partyId
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const link = document.createElement('a');
-                        link.href = `/api/download-debug?file=${data.filename}`;
-                        link.textContent = 'Download Debug Grid';
-                        link.download = data.filename;
-                        
-                        const messageDiv = document.createElement('div');
-                        messageDiv.classList.add('message', 'system');
-                        messageDiv.appendChild(link);
-                        chatLog.appendChild(messageDiv);
-                    }
-                });
-            });
+            }).then(loadParties);
+        }
+
+        // Transfer leadership
+        function transferLeadership(newLeaderId) {
+            const partyId = state.userCharacter.party;
             
+            fetch('/api/party/transfer-leadership', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    party_id: partyId,
+                    new_leader_id: newLeaderId
+                })
+            }).then(loadParties);
+        }
+
+        // Computed properties
+        const computed = {
+            // Parties available to join
+            availableParties() {
+                return state.parties.filter(party => 
+                    !party.members.includes(state.userCharacter.id)
+                );
+            },
+            
+            // Members of user's party
+            partyMembers() {
+                if (!state.userCharacter?.party) return [];
+                const party = state.parties.find(p => p.id === state.userCharacter.party);
+                return party.members.map(charId => {
+                    const char = state.characters.find(c => c.id === charId);
+                    return {
+                        ...char,
+                        isLeader: party.leader === charId
+                    };
+                });
+            },
+            
+            // Is current user the party leader
+            isPartyLeader() {
+                if (!state.userCharacter?.party) return false;
+                const party = state.parties.find(p => p.id === state.userCharacter.party);
+                return party.leader === state.userCharacter.id;
+            }
+        };
+
+        // Call on page load
+        window.addEventListener('load', () => {
+            loadUser()
+            updateMap();
             chatInput.focus();
+            initMovementControls();
+            loadCharacters();  // Load existing characters
         });        
     </script>
 </body>

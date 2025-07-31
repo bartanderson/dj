@@ -88,7 +88,7 @@ if __name__ == "__main__":
         #"A photorealistic portrait of a scientist in a lab, intricate details, 8k",
         #"Futuristic cityscape at sunset, cinematic lighting, ultra detailed",
         #"Close-up of a mechanical watch, steampunk style, sharp focus"
-        "rubble, close up of 4 rocks"
+        "male wizard holding a crystal staff"
     ]
     
     for i, prompt in enumerate(prompts):

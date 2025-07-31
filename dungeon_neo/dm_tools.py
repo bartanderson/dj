@@ -44,7 +44,7 @@ class DMTools:
     )
     def move_party(self, direction: str, steps: int = 1) -> dict:
         """Move party with proper validation"""
-        return self.state.movement.move(direction, steps)
+        return self.state.movement.move_party(direction, steps)
     
     def set_property(self, x, y, prop, value):
         cell = self.state.get_cell(x, y)

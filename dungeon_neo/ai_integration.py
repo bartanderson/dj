@@ -30,6 +30,22 @@ class DungeonAI:
         # Generate dynamic system prompt
         self.system_prompt = self._create_system_prompt()
 
+    def process_prompt(self, prompt: str) -> str:
+        # For testing, return a mock location in JSON format
+        if "location" in prompt:
+            return json.dumps({
+                "name": "Starter Town",
+                "description": "A small town for new adventurers",
+                "features": ["Town Square", "Blacksmith", "Tavern"],
+                "npcs": [
+                    {"name": "Old Man", "role": "Mayor", "motivation": "Keep the town safe"},
+                    {"name": "Blacksmith", "role": "Weaponsmith", "motivation": "Sell weapons"}
+                ],
+                "quest_hooks": ["Bandits in the forest", "Missing child"],
+                "services": ["Inn", "Shop", "Temple"],
+                "image_prompt": "A small fantasy town with a square and a few buildings"
+            })
+        return json.dumps({})  # Default empty response
         
     def _get_primitive_params(self, primitive):
         """Get parameter description for each primitive"""
@@ -42,6 +58,29 @@ class DungeonAI:
             "polygon": "points (list of [x,y] coordinates 0.0-1.0)"
         }
         return params.get(primitive, "")
+
+    def create_dm_prompt(game_state, player_action):
+        prompt = f"""
+        You are the Dungeon Master for an ongoing adventure. 
+        Current story arc: {game_state.narrative.active_arc}
+        Player motivation: {game_state.motivations.current_motivation}
+        Tension level: {game_state.pacing.tension_level}/100
+        
+        The players just: {player_action}
+        
+        Consider these narrative tools:
+        1. Gentle nudge: {game_state.guide.get_gentle_nudge(player_action)}
+        2. Motivational leverage: {game_state.motivations.get_narrative_leverage()}
+        3. Available consequence: {game_state.consequences.get_pending_consequence()}
+        
+        Respond by:
+        - Acknowledging the player action
+        - Incorporating narrative guidance if needed
+        - Advancing the story meaningfully
+        - Maintaining dramatic tension
+        - Preserving player agency
+        """
+        return prompt
     
     def _create_system_prompt(self) -> str:
         """Create prompt with dynamic tool descriptions"""
@@ -195,3 +234,45 @@ class DungeonAI:
                 "message": f"Tool execution error: {str(e)}",
                 "ai_response": full_response  # Use the full_response variable
             }
+
+    def generate_structured_data(self, prompt: str, response_format: dict) -> dict:
+        """
+        Generate structured data based on a prompt and response format
+        Used for world building content generation
+        """
+        # Create system prompt for structured generation
+        system_prompt = f"""
+        You are a world building assistant. Generate structured data in JSON format.
+        Respond ONLY with JSON that matches this format:
+        {json.dumps(response_format, indent=2)}
+        
+        Do not include any other text or explanations.
+        """
+        
+        # Generate response
+        response_chunks = self.ollama.generate(
+            model="llama3.1:8b",
+            system=system_prompt,
+            prompt=prompt,
+            format="json",
+            options={"temperature": 0.7},  # More creative for world building
+            stream=True
+        )
+        
+        # Collect response
+        full_response = ""
+        for chunk in response_chunks:
+            full_response += chunk.get("response", "")
+        
+        try:
+            return json.loads(full_response)
+        except json.JSONDecodeError:
+            # Try to extract JSON from malformed response
+            try:
+                json_match = re.search(r'\{.*\}', full_response, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
+                return {"error": "Invalid JSON response", "raw": full_response}
+            except:
+                return {"error": "JSON parsing failed", "raw": full_response}
+

@@ -1,0 +1,4231 @@
+[
+  {
+    "path": ".\\analyze.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "os"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "ast"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "argparse"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "typing",
+        "names": [
+          "List",
+          "Dict",
+          "Any",
+          "Optional"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "extract_function_info",
+        "args": [
+          "node"
+        ],
+        "decorators": [],
+        "lineno": 7
+      },
+      {
+        "name": "extract_class_info",
+        "args": [
+          "node"
+        ],
+        "decorators": [],
+        "lineno": 16
+      },
+      {
+        "name": "extract_import_info",
+        "args": [
+          "node"
+        ],
+        "decorators": [],
+        "lineno": 32
+      },
+      {
+        "name": "parse_python_file",
+        "args": [
+          "filepath"
+        ],
+        "decorators": [],
+        "lineno": 47
+      },
+      {
+        "name": "scan_project",
+        "args": [
+          "base_path",
+          "ignore_dirs"
+        ],
+        "decorators": [],
+        "lineno": 74
+      },
+      {
+        "name": "main",
+        "args": [],
+        "decorators": [],
+        "lineno": 91
+      }
+    ]
+  },
+  {
+    "path": ".\\app.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "uuid",
+          "random"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "flask",
+        "names": [
+          "Flask",
+          "send_file",
+          "g",
+          "session"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "core.game_state",
+        "names": [
+          "GameState"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "routes.api",
+        "names": [
+          "api_bp"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "create_app",
+        "args": [],
+        "decorators": [],
+        "lineno": 8
+      }
+    ]
+  },
+  {
+    "path": ".\\listpy.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "os"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "argparse"
+        ]
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "list_python_files",
+        "args": [
+          "exclude_dirs"
+        ],
+        "decorators": [],
+        "lineno": 4
+      }
+    ]
+  },
+  {
+    "path": ".\\t2i.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "os"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "torch"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "warnings"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "pathlib",
+        "names": [
+          "Path"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "diffusers",
+        "names": [
+          "StableDiffusionPipeline",
+          "DPMSolverMultistepScheduler"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "diffusers.utils",
+        "names": [
+          "logging"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "load_pipeline",
+        "args": [
+          "model_path"
+        ],
+        "decorators": [],
+        "lineno": 21
+      },
+      {
+        "name": "generate_image",
+        "args": [
+          "pipe",
+          "prompt",
+          "output_path",
+          "width",
+          "height"
+        ],
+        "decorators": [],
+        "lineno": 54
+      }
+    ]
+  },
+  {
+    "path": ".\\test_ai.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "ollama"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "test_ollama",
+        "args": [
+          "prompt"
+        ],
+        "decorators": [],
+        "lineno": 44
+      }
+    ]
+  },
+  {
+    "path": ".\\test_generation.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "unittest"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "unittest.mock",
+        "names": [
+          "MagicMock"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "TestWorldGeneration",
+        "bases": [
+          "unittest.TestCase"
+        ],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "setUp",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 6
+          },
+          {
+            "name": "test_location_generation",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 35
+          },
+          {
+            "name": "test_npc_generation",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 62
+          },
+          {
+            "name": "test_quest_generation",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 99
+          },
+          {
+            "name": "test_faction_generation",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 134
+          },
+          {
+            "name": "test_invalid_entity_type",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 169
+          },
+          {
+            "name": "test_json_parsing_failure",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 175
+          },
+          {
+            "name": "test_generation_with_context",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 190
+          },
+          {
+            "name": "test_image_generation_integration",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 202
+          }
+        ],
+        "lineno": 5
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\__init__.py",
+    "imports": [],
+    "classes": [],
+    "functions": []
+  },
+  {
+    "path": ".\\core\\dungeon.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.generator_neo",
+        "names": [
+          "DungeonGeneratorNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.state_neo",
+        "names": [
+          "DungeonStateNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.renderer_neo",
+        "names": [
+          "DungeonRendererNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.visibility_neo",
+        "names": [
+          "VisibilitySystemNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.movement_service",
+        "names": [
+          "MovementService"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonSystem",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "options"
+            ],
+            "decorators": [],
+            "lineno": 50
+          },
+          {
+            "name": "generate",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 57
+          },
+          {
+            "name": "_set_initial_party_position",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 82
+          },
+          {
+            "name": "is_blocked_for_movement",
+            "args": [
+              "self",
+              "cell"
+            ],
+            "decorators": [],
+            "lineno": 107
+          },
+          {
+            "name": "get_image",
+            "args": [
+              "self",
+              "debug"
+            ],
+            "decorators": [],
+            "lineno": 123
+          }
+        ],
+        "lineno": 8
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\core\\game_state.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon",
+        "names": [
+          "DungeonSystem"
+        ],
+        "level": 1
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.movement_service",
+        "names": [
+          "MovementService",
+          "CharacterMovementService"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.party_system",
+        "names": [
+          "PartySystem"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "collections",
+        "names": [
+          "defaultdict"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.campaign",
+        "names": [
+          "WorldState",
+          "NarrativeEngine",
+          "SessionManager"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.narrative_guidance",
+        "names": [
+          "NarrativeGuide"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.motivation_analysis",
+        "names": [
+          "MotivationTracker"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.consequence_engine",
+        "names": [
+          "ConsequenceSystem"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.choice_system",
+        "names": [
+          "ChoiceArchitect"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.pacing_controller",
+        "names": [
+          "PacingManager"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.ai_integration",
+        "names": [
+          "DungeonAI"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.world_builder",
+        "names": [
+          "WorldBuilder"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "GameState",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 15
+          },
+          {
+            "name": "generate_starting_content",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 45
+          },
+          {
+            "name": "process_player_action",
+            "args": [
+              "self",
+              "action"
+            ],
+            "decorators": [],
+            "lineno": 113
+          },
+          {
+            "name": "add_character",
+            "args": [
+              "self",
+              "character"
+            ],
+            "decorators": [],
+            "lineno": 133
+          },
+          {
+            "name": "get_character",
+            "args": [
+              "self",
+              "char_id"
+            ],
+            "decorators": [],
+            "lineno": 137
+          },
+          {
+            "name": "get_user_characters",
+            "args": [
+              "self",
+              "user_id"
+            ],
+            "decorators": [],
+            "lineno": 143
+          },
+          {
+            "name": "set_active_character",
+            "args": [
+              "self",
+              "user_id",
+              "char_id"
+            ],
+            "decorators": [],
+            "lineno": 146
+          },
+          {
+            "name": "move",
+            "args": [
+              "self",
+              "direction"
+            ],
+            "decorators": [],
+            "lineno": 152
+          },
+          {
+            "name": "move_party",
+            "args": [
+              "self",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 155
+          },
+          {
+            "name": "get_dungeon_image",
+            "args": [
+              "self",
+              "debug"
+            ],
+            "decorators": [],
+            "lineno": 159
+          },
+          {
+            "name": "get_current_room",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 166
+          },
+          {
+            "name": "reset",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 169
+          },
+          {
+            "name": "create_party",
+            "args": [
+              "self",
+              "leader_id"
+            ],
+            "decorators": [],
+            "lineno": 172
+          },
+          {
+            "name": "join_party",
+            "args": [
+              "self",
+              "char_id",
+              "party_id"
+            ],
+            "decorators": [],
+            "lineno": 183
+          },
+          {
+            "name": "leave_party",
+            "args": [
+              "self",
+              "char_id"
+            ],
+            "decorators": [],
+            "lineno": 194
+          }
+        ],
+        "lineno": 14
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\core\\__init__.py",
+    "imports": [],
+    "classes": [],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\ai_integration.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "tool_system",
+        "names": [
+          "ToolRegistry",
+          "tool"
+        ],
+        "level": 1
+      },
+      {
+        "type": "from",
+        "module": "ollama",
+        "names": [
+          "Client"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dm_tools",
+        "names": [
+          "DMTools"
+        ],
+        "level": 1
+      },
+      {
+        "type": "from",
+        "module": "overlay",
+        "names": [
+          "Overlay"
+        ],
+        "level": 1
+      },
+      {
+        "type": "import",
+        "names": [
+          "re"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonAI",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "dungeon_state",
+              "ollama_host"
+            ],
+            "decorators": [],
+            "lineno": 10
+          },
+          {
+            "name": "process_prompt",
+            "args": [
+              "self",
+              "prompt"
+            ],
+            "decorators": [],
+            "lineno": 33
+          },
+          {
+            "name": "_get_primitive_params",
+            "args": [
+              "self",
+              "primitive"
+            ],
+            "decorators": [],
+            "lineno": 50
+          },
+          {
+            "name": "create_dm_prompt",
+            "args": [
+              "game_state",
+              "player_action"
+            ],
+            "decorators": [],
+            "lineno": 62
+          },
+          {
+            "name": "_create_system_prompt",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 85
+          },
+          {
+            "name": "inspect_cell",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [
+              "tool(name='inspect_cell', description='Get detailed information about a dungeon cell', x='X coordinate (number)', y='Y coordinate (number)')"
+            ],
+            "lineno": 130
+          },
+          {
+            "name": "get_current_position",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "tool(name='get_current_position', description=\"Get the party's current position: if you have x,y then you don't use this\")"
+            ],
+            "lineno": 163
+          },
+          {
+            "name": "log_tool_call",
+            "args": [
+              "self",
+              "tool_name",
+              "arguments"
+            ],
+            "decorators": [],
+            "lineno": 172
+          },
+          {
+            "name": "process_command",
+            "args": [
+              "self",
+              "natural_language"
+            ],
+            "decorators": [],
+            "lineno": 196
+          }
+        ],
+        "lineno": 9
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\ai_prompts.py",
+    "imports": [],
+    "classes": [],
+    "functions": [
+      {
+        "name": "generate_location_description",
+        "args": [
+          "location",
+          "world_state"
+        ],
+        "decorators": [],
+        "lineno": 1
+      },
+      {
+        "name": "generate_npc_dialogue",
+        "args": [
+          "npc",
+          "narrative_state"
+        ],
+        "decorators": [],
+        "lineno": 18
+      }
+    ]
+  },
+  {
+    "path": ".\\dungeon_neo\\campaign.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "WorldState",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "add_location",
+            "args": [
+              "self",
+              "location_data"
+            ],
+            "decorators": [],
+            "lineno": 10
+          },
+          {
+            "name": "add_npc",
+            "args": [
+              "self",
+              "location_name",
+              "npc_data"
+            ],
+            "decorators": [],
+            "lineno": 23
+          },
+          {
+            "name": "add_faction",
+            "args": [
+              "self",
+              "faction_data"
+            ],
+            "decorators": [],
+            "lineno": 35
+          },
+          {
+            "name": "tick_world",
+            "args": [
+              "self",
+              "days"
+            ],
+            "decorators": [],
+            "lineno": 60
+          },
+          {
+            "name": "get_location_description",
+            "args": [
+              "self",
+              "name"
+            ],
+            "decorators": [],
+            "lineno": 66
+          }
+        ],
+        "lineno": 1
+      },
+      {
+        "name": "NPC",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "name",
+              "role",
+              "motivation"
+            ],
+            "decorators": [],
+            "lineno": 76
+          },
+          {
+            "name": "__repr__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 81
+          }
+        ],
+        "lineno": 74
+      },
+      {
+        "name": "Location",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "name",
+              "type",
+              "description",
+              "features",
+              "npcs",
+              "quests",
+              "services"
+            ],
+            "decorators": [],
+            "lineno": 85
+          }
+        ],
+        "lineno": 84
+      },
+      {
+        "name": "Faction",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "name",
+              "ideology",
+              "goals",
+              "resources",
+              "relationships",
+              "activities"
+            ],
+            "decorators": [],
+            "lineno": 110
+          },
+          {
+            "name": "__repr__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 118
+          }
+        ],
+        "lineno": 108
+      },
+      {
+        "name": "NarrativeEngine",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 122
+          },
+          {
+            "name": "start_story_arc",
+            "args": [
+              "self",
+              "arc_name",
+              "description"
+            ],
+            "decorators": [],
+            "lineno": 129
+          },
+          {
+            "name": "reveal_secret",
+            "args": [
+              "self",
+              "secret"
+            ],
+            "decorators": [],
+            "lineno": 135
+          },
+          {
+            "name": "add_quest",
+            "args": [
+              "self",
+              "quest"
+            ],
+            "decorators": [],
+            "lineno": 139
+          }
+        ],
+        "lineno": 121
+      },
+      {
+        "name": "SessionManager",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 143
+          },
+          {
+            "name": "move_party",
+            "args": [
+              "self",
+              "location_name"
+            ],
+            "decorators": [],
+            "lineno": 149
+          },
+          {
+            "name": "complete_quest",
+            "args": [
+              "self",
+              "quest_name"
+            ],
+            "decorators": [],
+            "lineno": 153
+          }
+        ],
+        "lineno": 142
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\cell_neo.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonCellNeo",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "base_type",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 28
+          },
+          {
+            "name": "position",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 45
+          },
+          {
+            "name": "_safe_property_check",
+            "args": [
+              "self",
+              "flag"
+            ],
+            "decorators": [],
+            "lineno": 49
+          },
+          {
+            "name": "_ensure_int",
+            "args": [
+              "self",
+              "value"
+            ],
+            "decorators": [],
+            "lineno": 57
+          },
+          {
+            "name": "is_passable",
+            "args": [
+              "self",
+              "secret_revealed"
+            ],
+            "decorators": [],
+            "lineno": 78
+          },
+          {
+            "name": "reveal_secret",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 89
+          },
+          {
+            "name": "door_orientation",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 96
+          },
+          {
+            "name": "stair_orientation",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 103
+          },
+          {
+            "name": "is_room",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 110
+          },
+          {
+            "name": "is_corridor",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 114
+          },
+          {
+            "name": "is_blocked",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 118
+          },
+          {
+            "name": "is_perimeter",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 122
+          },
+          {
+            "name": "is_door",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 126
+          },
+          {
+            "name": "is_arch",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 130
+          },
+          {
+            "name": "is_door_unlocked",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 134
+          },
+          {
+            "name": "is_locked",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 138
+          },
+          {
+            "name": "is_trapped",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 142
+          },
+          {
+            "name": "is_secret",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 146
+          },
+          {
+            "name": "is_portc",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 150
+          },
+          {
+            "name": "is_stair_up",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 154
+          },
+          {
+            "name": "is_stair_down",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 158
+          },
+          {
+            "name": "is_stairs",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 162
+          },
+          {
+            "name": "has_label",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 166
+          }
+        ],
+        "lineno": 2
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\character.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "uuid"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "Character",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "name",
+              "owner_id",
+              "type"
+            ],
+            "decorators": [],
+            "lineno": 3
+          },
+          {
+            "name": "_default_stats",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 17
+          },
+          {
+            "name": "lock",
+            "args": [
+              "self",
+              "session_id"
+            ],
+            "decorators": [],
+            "lineno": 25
+          },
+          {
+            "name": "unlock",
+            "args": [
+              "self",
+              "session_id"
+            ],
+            "decorators": [],
+            "lineno": 32
+          }
+        ],
+        "lineno": 2
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\choice_system.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "ChoiceArchitect",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "narrative_engine"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "create_branching_path",
+            "args": [
+              "self",
+              "key_point"
+            ],
+            "decorators": [],
+            "lineno": 6
+          },
+          {
+            "name": "_create_path_description",
+            "args": [
+              "self",
+              "path"
+            ],
+            "decorators": [],
+            "lineno": 15
+          },
+          {
+            "name": "_create_convergence_point",
+            "args": [
+              "self",
+              "key_point"
+            ],
+            "decorators": [],
+            "lineno": 21
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\consequence_engine.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "ConsequenceSystem",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "world_state"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "log_action",
+            "args": [
+              "self",
+              "action",
+              "significance"
+            ],
+            "decorators": [],
+            "lineno": 6
+          },
+          {
+            "name": "apply_delayed_consequences",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 14
+          },
+          {
+            "name": "_generate_consequence",
+            "args": [
+              "self",
+              "action"
+            ],
+            "decorators": [],
+            "lineno": 23
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\constants.py",
+    "imports": [],
+    "classes": [],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\dm_tools.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.entity",
+        "names": [
+          "Entity"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.overlay",
+        "names": [
+          "Overlay"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "tool_system",
+        "names": [
+          "tool"
+        ],
+        "level": 1
+      },
+      {
+        "type": "import",
+        "names": [
+          "random"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "DMTools",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "state"
+            ],
+            "decorators": [],
+            "lineno": 9
+          },
+          {
+            "name": "success",
+            "args": [
+              "self",
+              "message"
+            ],
+            "decorators": [],
+            "lineno": 33
+          },
+          {
+            "name": "fail",
+            "args": [
+              "self",
+              "message"
+            ],
+            "decorators": [],
+            "lineno": 36
+          },
+          {
+            "name": "move_party",
+            "args": [
+              "self",
+              "direction",
+              "steps"
+            ],
+            "decorators": [
+              "tool(name='move_party', description='Move the player party in a direction', direction='Direction to move (north, south, east, west, northeast, etc.)', steps='Number of steps (default=1)')"
+            ],
+            "lineno": 45
+          },
+          {
+            "name": "set_property",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "prop",
+              "value"
+            ],
+            "decorators": [],
+            "lineno": 49
+          },
+          {
+            "name": "set_cell_type",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "cell_type"
+            ],
+            "decorators": [
+              "tool(name='set_cell_type', description='\\n        1. USE \\'create_door\\' FOR DOORS - NOT \\'set_cell_type\\'\\n           - \\'set_cell_type\\' only sets base types (room/corridor/blocked)\\n           - \\'create_door\\' handles full door setup (position+orientation+type)\\n\\n        2. DOOR CREATION STEPS:\\n           a) \"Create arch at (5,5)\" \u2192 create_door(5,5,arch)\\n           b) \"Make door at (3,4) vertical\" \u2192 create_door(3,4,vertical,normal)\\n\\n        3. NEVER USE \\'set_cell_type\\' FOR DOORS:\\n           - It cannot configure door-specific properties\\n           - Use \\'create_door\\' or \\'set_door_properties\\' instead\\n\\n        4. EXAMPLE COMMANDS:\\n           - \"Create secret door at (7,2)\"\\n           - \"Convert door at (5,8) to portcullis\"\\n           - \"Make vertical arch at (3,4)\"\\n                ),\\n                x=\"X coordinate (number)\",\\n                y=\"Y coordinate (number)\",\\n                cell_type=\"room, corridor, blocked, door, stairs\"\\n        ')"
+            ],
+            "lineno": 80
+          },
+          {
+            "name": "create_door",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "orientation",
+              "door_type"
+            ],
+            "decorators": [
+              "tool(name='create_door', description='CREATE a new door. Steps:1. Converts cell to door space2. Sets door properties3. Handles orientationRules:\u2022 Requires adjacent open spaces (N/S/E/W must be room/corridor)\u2022 Secret doors start hidden\u2022 Arch doors are always passable', x='X coordinate (number)', y='Y coordinate (number)', orientation='horizontal or vertical', door_type='arch, normal, locked, trapped, secret, portc')"
+            ],
+            "lineno": 143
+          },
+          {
+            "name": "set_door_properties",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "orientation",
+              "door_type"
+            ],
+            "decorators": [
+              "tool(name='set_door_properties', description=\"SET properties for EXISTING doors. Use after set_cell_type:1. 'arch': Open passage2. 'normal': Standard door3. 'locked': Requires key4. 'trapped': Contains trap5. 'secret': Hidden door6. 'portc': Portcullis gateRules:\u2022 Only works on door cells\u2022 Orientation must match corridor direction\", x='X coordinate (number)', y='Y coordinate (number)', orientation='horizontal or vertical', door_type='arch, normal, locked, trapped, secret, portc')"
+            ],
+            "lineno": 172
+          },
+          {
+            "name": "reveal_secret",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [
+              "tool(name='reveal_secret', description='Reveal a secret door. Rules: \u2022 Only works on cells with secret flag \u2022 Makes door visible and passable \u2022 Converts secret door to arch', x='X coordinate (number)', y='Y coordinate (number)')"
+            ],
+            "lineno": 229
+          },
+          {
+            "name": "set_stairs_orientation",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "direction",
+              "orientation"
+            ],
+            "decorators": [
+              "tool(name='set_stairs_orientation', description='Set stairs orientation. Rules: \u2022 Only valid for stairs at corridor ends \u2022 Orientation must match corridor direction \u2022 Up stairs face upward, down stairs face downward', x='X coordinate (number)', y='Y coordinate (number)', direction='up or down', orientation='horizontal or vertical')"
+            ],
+            "lineno": 261
+          },
+          {
+            "name": "_has_adjacent_open_space",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 287
+          },
+          {
+            "name": "_is_at_corridor_end",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 296
+          },
+          {
+            "name": "modify_cell_flag",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "property",
+              "value"
+            ],
+            "decorators": [
+              "tool(name='modify_cell_flag', description=\"MODIFY specific cell flags. For advanced use:\u2022 Properties: arch, door, locked, trapped, secret, portc, stairs_up, stairs_down\u2022 Use 'true' to enable, 'false' to disableExample: Make a door trapped\", x='X coordinate (number)', y='Y coordinate (number)', property='Specific property to modify', value='true or false')"
+            ],
+            "lineno": 320
+          },
+          {
+            "name": "add_entity",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "entity_type"
+            ],
+            "decorators": [
+              "tool(name='add_entity', description='Add an entity to a dungeon cell', x='X coordinate (number)', y='Y coordinate (number)', entity_type='Type of entity (npc, monster, item, trap, portal, chest, etc.)')"
+            ],
+            "lineno": 361
+          },
+          {
+            "name": "describe_cell",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "text"
+            ],
+            "decorators": [
+              "tool(name='describe_cell', description='Add a text description to a dungeon cell', x='X coordinate (number)', y='Y coordinate (number)', text='Description text')"
+            ],
+            "lineno": 377
+          },
+          {
+            "name": "add_overlay",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "primitive",
+              "color_r",
+              "color_g",
+              "color_b",
+              "parameters"
+            ],
+            "decorators": [
+              "tool(name='add_overlay', description='Add a primitive overlay to a cell', x='X coordinate (number)', y='Y coordinate (number)', primitive='Primitive type (circle, square, triangle, line, text, polygon)', color_r='Red component (0-255)', color_g='Green component (0-255)', color_b='Blue component (0-255)', parameters='JSON string of additional parameters (optional)')"
+            ],
+            "lineno": 397
+          },
+          {
+            "name": "reset_dungeon",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "tool(name='reset_dungeon', description='Generate a new dungeon')"
+            ],
+            "lineno": 423
+          },
+          {
+            "name": "get_debug_grid",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "tool(name='get_debug_grid', description='Get a text-based debug view of the dungeon')"
+            ],
+            "lineno": 432
+          }
+        ],
+        "lineno": 8
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\entity.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "Entity",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "entity_type"
+            ],
+            "decorators": [],
+            "lineno": 15
+          },
+          {
+            "name": "get_symbol",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 19
+          }
+        ],
+        "lineno": 2
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\generator_neo.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "random"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "math"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "typing",
+        "names": [
+          "List",
+          "Dict",
+          "Any",
+          "Tuple",
+          "Optional"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS",
+          "DIRECTION_VECTORS",
+          "OPPOSITE_DIRECTIONS"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonGeneratorNeo",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 34
+          },
+          {
+            "name": "stairs",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 39
+          },
+          {
+            "name": "corridors",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 44
+          },
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "options"
+            ],
+            "decorators": [],
+            "lineno": 54
+          },
+          {
+            "name": "_initialize_structures",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 145
+          },
+          {
+            "name": "create_dungeon",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 159
+          },
+          {
+            "name": "init_dungeon_size",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 241
+          },
+          {
+            "name": "init_cells",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 254
+          },
+          {
+            "name": "mask_cells",
+            "args": [
+              "self",
+              "mask"
+            ],
+            "decorators": [],
+            "lineno": 275
+          },
+          {
+            "name": "round_mask",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 287
+          },
+          {
+            "name": "emplace_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 298
+          },
+          {
+            "name": "pack_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 304
+          },
+          {
+            "name": "scatter_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 315
+          },
+          {
+            "name": "alloc_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 320
+          },
+          {
+            "name": "emplace_room",
+            "args": [
+              "self",
+              "proto"
+            ],
+            "decorators": [],
+            "lineno": 325
+          },
+          {
+            "name": "set_room",
+            "args": [
+              "self",
+              "proto"
+            ],
+            "decorators": [],
+            "lineno": 379
+          },
+          {
+            "name": "sound_room",
+            "args": [
+              "self",
+              "r1",
+              "c1",
+              "r2",
+              "c2"
+            ],
+            "decorators": [],
+            "lineno": 397
+          },
+          {
+            "name": "open_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 408
+          },
+          {
+            "name": "open_room",
+            "args": [
+              "self",
+              "room"
+            ],
+            "decorators": [],
+            "lineno": 414
+          },
+          {
+            "name": "alloc_opens",
+            "args": [
+              "self",
+              "room"
+            ],
+            "decorators": [],
+            "lineno": 507
+          },
+          {
+            "name": "door_sills",
+            "args": [
+              "self",
+              "room"
+            ],
+            "decorators": [],
+            "lineno": 513
+          },
+          {
+            "name": "check_sill",
+            "args": [
+              "self",
+              "room",
+              "sill_r",
+              "sill_c",
+              "dir"
+            ],
+            "decorators": [],
+            "lineno": 545
+          },
+          {
+            "name": "shuffle",
+            "args": [
+              "self",
+              "arr"
+            ],
+            "decorators": [],
+            "lineno": 574
+          },
+          {
+            "name": "door_type",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 577
+          },
+          {
+            "name": "label_rooms",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 593
+          },
+          {
+            "name": "corridors",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 604
+          },
+          {
+            "name": "block_corridor_walls",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 614
+          },
+          {
+            "name": "tunnel",
+            "args": [
+              "self",
+              "i",
+              "j",
+              "last_dir"
+            ],
+            "decorators": [],
+            "lineno": 630
+          },
+          {
+            "name": "tunnel_dirs",
+            "args": [
+              "self",
+              "last_dir"
+            ],
+            "decorators": [],
+            "lineno": 638
+          },
+          {
+            "name": "open_tunnel",
+            "args": [
+              "self",
+              "i",
+              "j",
+              "dir"
+            ],
+            "decorators": [],
+            "lineno": 648
+          },
+          {
+            "name": "sound_tunnel",
+            "args": [
+              "self",
+              "mid_r",
+              "mid_c",
+              "next_r",
+              "next_c"
+            ],
+            "decorators": [],
+            "lineno": 662
+          },
+          {
+            "name": "delve_tunnel",
+            "args": [
+              "self",
+              "r1",
+              "c1",
+              "r2",
+              "c2"
+            ],
+            "decorators": [],
+            "lineno": 677
+          },
+          {
+            "name": "emplace_stairs",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 689
+          },
+          {
+            "name": "stair_ends",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 753
+          },
+          {
+            "name": "clean_dungeon",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 779
+          },
+          {
+            "name": "remove_deadends",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 785
+          },
+          {
+            "name": "clean_disconnected_doors",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 805
+          },
+          {
+            "name": "collapse",
+            "args": [
+              "self",
+              "r",
+              "c",
+              "xc"
+            ],
+            "decorators": [],
+            "lineno": 819
+          },
+          {
+            "name": "is_adjacent_to_door",
+            "args": [
+              "self",
+              "r",
+              "c"
+            ],
+            "decorators": [],
+            "lineno": 834
+          },
+          {
+            "name": "corridor_leads_to_door",
+            "args": [
+              "self",
+              "r",
+              "c"
+            ],
+            "decorators": [],
+            "lineno": 842
+          },
+          {
+            "name": "check_tunnel",
+            "args": [
+              "self",
+              "cell",
+              "r",
+              "c",
+              "check"
+            ],
+            "decorators": [],
+            "lineno": 853
+          },
+          {
+            "name": "fix_doors",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 872
+          },
+          {
+            "name": "get_door_type",
+            "args": [
+              "self",
+              "cell"
+            ],
+            "decorators": [],
+            "lineno": 935
+          },
+          {
+            "name": "has_open_space",
+            "args": [
+              "self",
+              "r",
+              "c"
+            ],
+            "decorators": [],
+            "lineno": 950
+          },
+          {
+            "name": "fill_blocks",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 959
+          }
+        ],
+        "lineno": 6
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\grid_system.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "GridSystem",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "width",
+              "height"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "get_cell",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 7
+          },
+          {
+            "name": "set_cell",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "value"
+            ],
+            "decorators": [],
+            "lineno": 13
+          },
+          {
+            "name": "is_valid_position",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 18
+          },
+          {
+            "name": "get_neighbors",
+            "args": [
+              "self",
+              "x",
+              "y",
+              "directions"
+            ],
+            "decorators": [],
+            "lineno": 21
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\image_generator.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "ImageGenerator",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "ai_system",
+              "backend"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "generate_image",
+            "args": [
+              "self",
+              "prompt",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 6
+          },
+          {
+            "name": "_generate_via_comfyui",
+            "args": [
+              "self",
+              "prompt",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 13
+          },
+          {
+            "name": "_create_comfyui_workflow",
+            "args": [
+              "self",
+              "prompt",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 22
+          },
+          {
+            "name": "_generate_via_sdapi",
+            "args": [
+              "self",
+              "prompt",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 33
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\motivation_analysis.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "MotivationTracker",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "analyze_action",
+            "args": [
+              "self",
+              "action",
+              "character"
+            ],
+            "decorators": [],
+            "lineno": 6
+          },
+          {
+            "name": "get_narrative_leverage",
+            "args": [
+              "self",
+              "motivation"
+            ],
+            "decorators": [],
+            "lineno": 18
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\movement_service.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "DIRECTION_VECTORS_8"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "state_neo",
+        "names": [
+          "DungeonStateNeo"
+        ],
+        "level": 1
+      }
+    ],
+    "classes": [
+      {
+        "name": "CharacterMovementService",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "state"
+            ],
+            "decorators": [],
+            "lineno": 5
+          },
+          {
+            "name": "move_character",
+            "args": [
+              "self",
+              "char",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 8
+          }
+        ],
+        "lineno": 4
+      },
+      {
+        "name": "MovementService",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "state"
+            ],
+            "decorators": [],
+            "lineno": 23
+          },
+          {
+            "name": "dungeon_state",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 28
+          },
+          {
+            "name": "calculate_movement",
+            "args": [
+              "self",
+              "start_x",
+              "start_y",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 31
+          },
+          {
+            "name": "move_party",
+            "args": [
+              "self",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 87
+          },
+          {
+            "name": "is_passable",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 130
+          },
+          {
+            "name": "get_cell_type",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 150
+          }
+        ],
+        "lineno": 22
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\narrative_guidance.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "NarrativeGuide",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "narrative_engine"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "get_gentle_nudge",
+            "args": [
+              "self",
+              "player_actions"
+            ],
+            "decorators": [],
+            "lineno": 10
+          },
+          {
+            "name": "_create_distraction_resolution",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 18
+          },
+          {
+            "name": "_redirect_to_storyline",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 22
+          },
+          {
+            "name": "emergency_nudge",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 26
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\overlay.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "math"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "Overlay",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "primitive"
+            ],
+            "decorators": [],
+            "lineno": 7
+          },
+          {
+            "name": "render",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "cell_size"
+            ],
+            "decorators": [],
+            "lineno": 14
+          }
+        ],
+        "lineno": 4
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\pacing_controller.py",
+    "imports": [],
+    "classes": [
+      {
+        "name": "PacingManager",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 2
+          },
+          {
+            "name": "adjust_pace",
+            "args": [
+              "self",
+              "player_actions"
+            ],
+            "decorators": [],
+            "lineno": 7
+          },
+          {
+            "name": "_transition_to_downtime",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 16
+          },
+          {
+            "name": "_transition_to_action",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 21
+          },
+          {
+            "name": "_transition_to_mystery",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 26
+          }
+        ],
+        "lineno": 1
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\party_system.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.movement_service",
+        "names": [
+          "MovementService",
+          "CharacterMovementService"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "PartySystem",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "state"
+            ],
+            "decorators": [],
+            "lineno": 3
+          },
+          {
+            "name": "get_user_characters_in_party",
+            "args": [
+              "self",
+              "user_id",
+              "party_id"
+            ],
+            "decorators": [],
+            "lineno": 9
+          },
+          {
+            "name": "can_manage_party",
+            "args": [
+              "self",
+              "user_id",
+              "party_id"
+            ],
+            "decorators": [],
+            "lineno": 17
+          },
+          {
+            "name": "create_party",
+            "args": [
+              "self",
+              "leader_char_id"
+            ],
+            "decorators": [],
+            "lineno": 26
+          },
+          {
+            "name": "join_party",
+            "args": [
+              "self",
+              "char_id",
+              "party_id"
+            ],
+            "decorators": [],
+            "lineno": 36
+          },
+          {
+            "name": "leave_party",
+            "args": [
+              "self",
+              "char_id"
+            ],
+            "decorators": [],
+            "lineno": 48
+          },
+          {
+            "name": "transfer_leadership",
+            "args": [
+              "self",
+              "party_id",
+              "new_leader_id"
+            ],
+            "decorators": [],
+            "lineno": 70
+          },
+          {
+            "name": "move_party",
+            "args": [
+              "self",
+              "party_id",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 82
+          }
+        ],
+        "lineno": 2
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\renderer_neo.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "PIL",
+        "names": [
+          "Image",
+          "ImageDraw",
+          "ImageFont"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.state_neo",
+        "names": [
+          "DungeonStateNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.generator_neo",
+        "names": [
+          "DungeonGeneratorNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS",
+          "DIRECTION_VECTORS",
+          "OPPOSITE_DIRECTIONS"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.cell_neo",
+        "names": [
+          "DungeonCellNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.overlay",
+        "names": [
+          "Overlay"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonRendererNeo",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "cell_size",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 52
+          },
+          {
+            "name": "cell_size",
+            "args": [
+              "self",
+              "value"
+            ],
+            "decorators": [
+              "cell_size.setter"
+            ],
+            "lineno": 56
+          },
+          {
+            "name": "colors",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 60
+          },
+          {
+            "name": "colors",
+            "args": [
+              "self",
+              "value"
+            ],
+            "decorators": [
+              "colors.setter"
+            ],
+            "lineno": 64
+          },
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "cell_size"
+            ],
+            "decorators": [],
+            "lineno": 67
+          },
+          {
+            "name": "render",
+            "args": [
+              "self",
+              "state",
+              "debug_show_all",
+              "include_legend",
+              "visibility_system"
+            ],
+            "decorators": [],
+            "lineno": 70
+          },
+          {
+            "name": "_render_dungeon",
+            "args": [
+              "self",
+              "state",
+              "debug_show_all",
+              "visibility_system"
+            ],
+            "decorators": [],
+            "lineno": 79
+          },
+          {
+            "name": "_draw_party_icon",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 261
+          },
+          {
+            "name": "_draw_label",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "cell"
+            ],
+            "decorators": [],
+            "lineno": 272
+          },
+          {
+            "name": "_draw_grid",
+            "args": [
+              "self",
+              "draw",
+              "width",
+              "height"
+            ],
+            "decorators": [],
+            "lineno": 283
+          },
+          {
+            "name": "_draw_cell",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "cell",
+              "stair_dict"
+            ],
+            "decorators": [],
+            "lineno": 291
+          },
+          {
+            "name": "_draw_block",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 308
+          },
+          {
+            "name": "_draw_room",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 314
+          },
+          {
+            "name": "_draw_corridor",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 320
+          },
+          {
+            "name": "has_open_space",
+            "args": [
+              "self",
+              "r",
+              "c"
+            ],
+            "decorators": [],
+            "lineno": 326
+          },
+          {
+            "name": "_draw_door",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "cell",
+              "orientation",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 335
+          },
+          {
+            "name": "_draw_stairs",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "stair_type",
+              "orientation",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 447
+          },
+          {
+            "name": "_get_door_type",
+            "args": [
+              "self",
+              "cell_flags"
+            ],
+            "decorators": [],
+            "lineno": 478
+          },
+          {
+            "name": "generate_legend_icons",
+            "args": [
+              "self",
+              "icon_size"
+            ],
+            "decorators": [],
+            "lineno": 493
+          },
+          {
+            "name": "create_composite_image",
+            "args": [
+              "self",
+              "dungeon_img",
+              "icons",
+              "position",
+              "padding"
+            ],
+            "decorators": [],
+            "lineno": 573
+          },
+          {
+            "name": "_draw_room",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 603
+          },
+          {
+            "name": "_draw_corridor",
+            "args": [
+              "self",
+              "draw",
+              "x",
+              "y",
+              "size"
+            ],
+            "decorators": [],
+            "lineno": 609
+          }
+        ],
+        "lineno": 8
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\state_neo.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "typing",
+        "names": [
+          "List",
+          "Dict",
+          "Any",
+          "Tuple",
+          "Optional",
+          "Union"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.grid_system",
+        "names": [
+          "GridSystem"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS",
+          "DIRECTION_VECTORS_8"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.cell_neo",
+        "names": [
+          "DungeonCellNeo"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.visibility_neo",
+        "names": [
+          "VisibilitySystemNeo"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "DungeonStateNeo",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "generator_result"
+            ],
+            "decorators": [],
+            "lineno": 25
+          },
+          {
+            "name": "save_debug_grid",
+            "args": [
+              "self",
+              "filename",
+              "show_blocking",
+              "show_types"
+            ],
+            "decorators": [],
+            "lineno": 69
+          },
+          {
+            "name": "get_debug_grid",
+            "args": [
+              "self",
+              "show_blocking",
+              "show_types"
+            ],
+            "decorators": [],
+            "lineno": 83
+          },
+          {
+            "name": "_populate_grid",
+            "args": [
+              "self",
+              "generator_grid"
+            ],
+            "decorators": [],
+            "lineno": 118
+          },
+          {
+            "name": "width",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 145
+          },
+          {
+            "name": "height",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 149
+          },
+          {
+            "name": "party_position",
+            "args": [
+              "self"
+            ],
+            "decorators": [
+              "property"
+            ],
+            "lineno": 153
+          },
+          {
+            "name": "party_position",
+            "args": [
+              "self",
+              "value"
+            ],
+            "decorators": [
+              "party_position.setter"
+            ],
+            "lineno": 157
+          },
+          {
+            "name": "get_cell",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 163
+          },
+          {
+            "name": "get_door_orientation",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 168
+          },
+          {
+            "name": "get_stair_orientation",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 173
+          },
+          {
+            "name": "reveal_secret",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 180
+          },
+          {
+            "name": "update_visibility_for_path",
+            "args": [
+              "self",
+              "path_cells"
+            ],
+            "decorators": [],
+            "lineno": 186
+          }
+        ],
+        "lineno": 7
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\tool_system.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "inspect"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "re"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "typing",
+        "names": [
+          "Dict",
+          "Callable",
+          "Any",
+          "List",
+          "Optional"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "Tool",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "name",
+              "func",
+              "description",
+              "params"
+            ],
+            "decorators": [],
+            "lineno": 7
+          },
+          {
+            "name": "to_dict",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 13
+          },
+          {
+            "name": "execute",
+            "args": [
+              "self",
+              "arguments"
+            ],
+            "decorators": [],
+            "lineno": 20
+          }
+        ],
+        "lineno": 6
+      },
+      {
+        "name": "ToolRegistry",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 24
+          },
+          {
+            "name": "register",
+            "args": [
+              "self",
+              "tool"
+            ],
+            "decorators": [],
+            "lineno": 27
+          },
+          {
+            "name": "register_from_class",
+            "args": [
+              "self",
+              "instance"
+            ],
+            "decorators": [],
+            "lineno": 30
+          },
+          {
+            "name": "get_tools_spec",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 42
+          },
+          {
+            "name": "execute_tool",
+            "args": [
+              "self",
+              "tool_name",
+              "arguments"
+            ],
+            "decorators": [],
+            "lineno": 45
+          },
+          {
+            "name": "get_tool",
+            "args": [
+              "self",
+              "name"
+            ],
+            "decorators": [],
+            "lineno": 50
+          }
+        ],
+        "lineno": 23
+      }
+    ],
+    "functions": [
+      {
+        "name": "tool",
+        "args": [
+          "name",
+          "description"
+        ],
+        "decorators": [],
+        "lineno": 53
+      }
+    ]
+  },
+  {
+    "path": ".\\dungeon_neo\\visibility_neo.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "CELL_FLAGS",
+          "DIRECTION_VECTORS_8"
+        ],
+        "level": 0
+      },
+      {
+        "type": "import",
+        "names": [
+          "math"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "VisibilitySystemNeo",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "grid_system",
+              "party_position",
+              "light_radius"
+            ],
+            "decorators": [],
+            "lineno": 30
+          },
+          {
+            "name": "update_visibility",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 37
+          },
+          {
+            "name": "update_visibility_directional",
+            "args": [
+              "self",
+              "direction",
+              "steps"
+            ],
+            "decorators": [],
+            "lineno": 75
+          },
+          {
+            "name": "_get_line",
+            "args": [
+              "self",
+              "x0",
+              "y0",
+              "x1",
+              "y1"
+            ],
+            "decorators": [],
+            "lineno": 98
+          },
+          {
+            "name": "_is_blocking",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 121
+          },
+          {
+            "name": "is_visible",
+            "args": [
+              "self",
+              "x",
+              "y"
+            ],
+            "decorators": [],
+            "lineno": 131
+          }
+        ],
+        "lineno": 4
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\dungeon_neo\\world_builder.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "json"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "ai_integration",
+        "names": [
+          "DungeonAI"
+        ],
+        "level": 1
+      }
+    ],
+    "classes": [
+      {
+        "name": "WorldBuilder",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self",
+              "ai_system"
+            ],
+            "decorators": [],
+            "lineno": 5
+          },
+          {
+            "name": "_load_templates",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 9
+          },
+          {
+            "name": "_location_template",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 17
+          },
+          {
+            "name": "_npc_template",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 45
+          },
+          {
+            "name": "_quest_template",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 72
+          },
+          {
+            "name": "_faction_template",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 99
+          },
+          {
+            "name": "generate",
+            "args": [
+              "self",
+              "entity_type"
+            ],
+            "decorators": [],
+            "lineno": 126
+          }
+        ],
+        "lineno": 4
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\routes\\api.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "flask",
+        "names": [
+          "Blueprint",
+          "jsonify",
+          "current_app",
+          "send_file",
+          "request",
+          "session"
+        ],
+        "level": 0
+      },
+      {
+        "type": "import",
+        "names": [
+          "io"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.constants",
+        "names": [
+          "*"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.ai_integration",
+        "names": [
+          "DungeonAI"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.movement_service",
+        "names": [
+          "MovementService"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon_neo.character",
+        "names": [
+          "Character"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "generate_content",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/generate-content', methods=['POST'])"
+        ],
+        "lineno": 11
+      },
+      {
+        "name": "regenerate_location",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/regenerate-location', methods=['POST'])"
+        ],
+        "lineno": 27
+      },
+      {
+        "name": "get_town_description",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/town/describe', methods=['GET'])"
+        ],
+        "lineno": 44
+      },
+      {
+        "name": "customize_character",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/customize', methods=['POST'])"
+        ],
+        "lineno": 50
+      },
+      {
+        "name": "form_party",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/form', methods=['POST'])"
+        ],
+        "lineno": 64
+      },
+      {
+        "name": "create_party",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/create', methods=['POST'])"
+        ],
+        "lineno": 79
+      },
+      {
+        "name": "join_party",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/join', methods=['POST'])"
+        ],
+        "lineno": 85
+      },
+      {
+        "name": "leave_party",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/leave', methods=['POST'])"
+        ],
+        "lineno": 92
+      },
+      {
+        "name": "transfer_leadership",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/transfer-leadership', methods=['POST'])"
+        ],
+        "lineno": 98
+      },
+      {
+        "name": "handle_party_movement",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/move', methods=['POST'])"
+        ],
+        "lineno": 106
+      },
+      {
+        "name": "handle_character_movement",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/move', methods=['POST'])"
+        ],
+        "lineno": 115
+      },
+      {
+        "name": "create_character",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/create', methods=['POST'])"
+        ],
+        "lineno": 132
+      },
+      {
+        "name": "set_active_character",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/set-active', methods=['POST'])"
+        ],
+        "lineno": 149
+      },
+      {
+        "name": "delete_character",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/delete', methods=['POST'])"
+        ],
+        "lineno": 160
+      },
+      {
+        "name": "user_info",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/user-info', methods=['GET'])"
+        ],
+        "lineno": 175
+      },
+      {
+        "name": "list_parties",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/party/list', methods=['GET'])"
+        ],
+        "lineno": 188
+      },
+      {
+        "name": "select_character",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/select', methods=['POST'])"
+        ],
+        "lineno": 202
+      },
+      {
+        "name": "list_characters",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/character/list', methods=['GET'])"
+        ],
+        "lineno": 225
+      },
+      {
+        "name": "handle_movement",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/move', methods=['POST'])"
+        ],
+        "lineno": 237
+      },
+      {
+        "name": "download_debug",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/download-debug', methods=['GET'])"
+        ],
+        "lineno": 255
+      },
+      {
+        "name": "get_debug_grid",
+        "args": [
+          "self",
+          "show_blocking",
+          "show_types"
+        ],
+        "decorators": [
+          "api_bp.route('/debug-grid', methods=['GET'])"
+        ],
+        "lineno": 268
+      },
+      {
+        "name": "handle_ai_command",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/ai-command', methods=['POST'])"
+        ],
+        "lineno": 317
+      },
+      {
+        "name": "debug_state",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/debug-state')"
+        ],
+        "lineno": 356
+      },
+      {
+        "name": "get_dungeon_image",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/dungeon-image')"
+        ],
+        "lineno": 371
+      },
+      {
+        "name": "reset_dungeon",
+        "args": [],
+        "decorators": [
+          "api_bp.route('/reset', methods=['POST'])"
+        ],
+        "lineno": 385
+      }
+    ]
+  },
+  {
+    "path": ".\\routes\\__init__.py",
+    "imports": [],
+    "classes": [],
+    "functions": []
+  },
+  {
+    "path": ".\\tests\\test_helpers.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "src.AIDMFramework",
+        "names": [
+          "Character",
+          "AbilityScores",
+          "EnhancedGameContext"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "src.game.state",
+        "names": [
+          "UnifiedGameState"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "src.ai.dm_agent",
+        "names": [
+          "EnhancedDMAgent"
+        ],
+        "level": 0
+      },
+      {
+        "type": "import",
+        "names": [
+          "uuid"
+        ]
+      }
+    ],
+    "classes": [],
+    "functions": [
+      {
+        "name": "create_test_game_state",
+        "args": [],
+        "decorators": [],
+        "lineno": 7
+      }
+    ]
+  },
+  {
+    "path": ".\\tests\\test_persistence.py",
+    "imports": [
+      {
+        "type": "import",
+        "names": [
+          "unittest"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "os"
+        ]
+      },
+      {
+        "type": "from",
+        "module": "src.AIDMFramework",
+        "names": [
+          "EnhancedGameContext",
+          "GamePersistence",
+          "Character"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "src.game.state",
+        "names": [
+          "UnifiedGameState"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "test_helpers",
+        "names": [
+          "create_test_game_state"
+        ],
+        "level": 0
+      }
+    ],
+    "classes": [
+      {
+        "name": "TestGamePersistence",
+        "bases": [
+          "unittest.TestCase"
+        ],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "setUp",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 9
+          },
+          {
+            "name": "tearDown",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 17
+          },
+          {
+            "name": "test_save_and_load",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 21
+          },
+          {
+            "name": "test_character_persistence",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 33
+          }
+        ],
+        "lineno": 8
+      }
+    ],
+    "functions": []
+  },
+  {
+    "path": ".\\tests\\test_runner.py",
+    "imports": [
+      {
+        "type": "from",
+        "module": "src.game.state",
+        "names": [
+          "UnifiedGameState"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "src.ai.dm_agent",
+        "names": [
+          "EnhancedDMAgent"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "dungeon.generator",
+        "names": [
+          "EnhancedDungeonGenerator"
+        ],
+        "level": 0
+      },
+      {
+        "type": "from",
+        "module": "src.AIDMFramework",
+        "names": [
+          "Character",
+          "AbilityScores"
+        ],
+        "level": 0
+      },
+      {
+        "type": "import",
+        "names": [
+          "uuid"
+        ]
+      },
+      {
+        "type": "import",
+        "names": [
+          "asyncio"
+        ]
+      }
+    ],
+    "classes": [
+      {
+        "name": "TestHarness",
+        "bases": [],
+        "decorators": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 10
+          },
+          {
+            "name": "_create_test_character",
+            "args": [
+              "self",
+              "character_class",
+              "race",
+              "position"
+            ],
+            "decorators": [],
+            "lineno": 40
+          },
+          {
+            "name": "run_command",
+            "args": [
+              "self",
+              "command"
+            ],
+            "decorators": [],
+            "lineno": 54
+          },
+          {
+            "name": "visualize_dungeon",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 59
+          },
+          {
+            "name": "debug_state",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 63
+          },
+          {
+            "name": "__del__",
+            "args": [
+              "self"
+            ],
+            "decorators": [],
+            "lineno": 77
+          }
+        ],
+        "lineno": 9
+      }
+    ],
+    "functions": []
+  }
+]

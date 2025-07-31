@@ -1,0 +1,22 @@
+core\dungeon.py------|
+dungeon_neo\cell_neo.py-----|
+				v
+				dungeon_neo\dm_tools-----------------------|
+				dungeon_neo\tool_system.py                 |
+				dungeon_neo\ai_integration.py--------------x------- \app.py core\game_state.py
+				dungeon_neo\ai_prompts.py                  | 
+				dungeon_neo\state_neo.py                   |
+                                                           |
+dungeon_neo\constants.py                                   |
+dungeon_neo\generator_neo.py                               |
+dungeon_neo\renderer_neo.py                                |
+dungeon_neo\visibility_neo.py                              |
+dungeon_neo\grid_system.py---                              |
+							v                              | 
+							dungeon_neo\entity.py <---------
+							dungeon_neo\character.py
+							dungeon_neo\movement_service.py
+							dungeon_neo\party_system.py
+
+
+These are the file context I will use with DeepSeek for dungeon issues

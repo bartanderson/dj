@@ -178,7 +178,7 @@ class DungeonStateNeo:
         return result
     
     def reveal_secret(self, x: int, y: int):
-        if self.grid_system.is_valid_position(x, y):
+        if self.grid_system.is_valid_position(x, y): # need to test this function
             self.secret_mask[y][x] = True
             return True
         return False

@@ -1,12 +1,276 @@
-from flask import Blueprint, jsonify, current_app, send_file, request
+from flask import Blueprint, jsonify, current_app, send_file, request, session
 import io
 from dungeon_neo.constants import *
 from dungeon_neo.ai_integration import DungeonAI
 from dungeon_neo.movement_service import MovementService
+from dungeon_neo.character import Character
 
 api_bp = Blueprint('api', __name__)
 
+# World state endpoints
+@api_bp.route('/world-state')
+def get_world_state():
+    return jsonify({
+        "worldMap": current_app.game_state.world.get_map_data(),
+        "currentLocation": current_app.game_state.session.current_location,
+        "party": [c.__dict__ for c in current_app.game_state.party],
+        "activeQuests": [q.to_dict() for q in current_app.game_state.narrative.active_quests]
+    })
 
+@api_bp.route('/travel/<location_id>', methods=['POST'])
+def travel_to_location(location_id):
+    game_state = current_app.game_state
+    location = game_state.world.get_location(location_id)
+    
+    if not location:
+        return jsonify({"success": False, "message": "Location not found"})
+    
+    # Move party to new location
+    game_state.session.move_party(location_id)
+    
+    return jsonify({
+        "success": True,
+        "location": location.to_dict(),
+        "worldMap": game_state.world.get_map_data()
+    })
+
+@api_bp.route('/generate-dungeon', methods=['POST'])
+def generate_dungeon():
+    game_state = current_app.game_state
+    current_location = game_state.session.current_location
+    
+    # Generate dungeon based on location type
+    dungeon_type = game_state.world.get_location(current_location).dungeon_type
+    game_state.dungeon.generate(type=dungeon_type)
+    
+    return jsonify({"success": True})
+# End World state endpoints ###
+
+
+@api_bp.route('/generate-content', methods=['POST'])
+def generate_content():
+    entity_type = request.json['entity_type']
+    params = request.json.get('params', {})
+    
+    generator = current_app.game_state.world_builder
+    result = generator.generate(entity_type, **params)
+    
+    # Add image if requested
+    if request.json.get('include_image', False):
+        image_gen = ImageGenerator(current_app.game_state.ai)
+        image_url = image_gen.generate_image(result.get('image_prompt', ''))
+        result['image_url'] = image_url
+    
+    return jsonify(result)
+
+@api_bp.route('/regenerate-location', methods=['POST'])
+def regenerate_location():
+    location_name = request.json['location_name']
+    game_state = current_app.game_state
+    
+    # Regenerate location
+    location = game_state.world.locations[location_name]
+    new_version = game_state.world_builder.generate(
+        "location",
+        location_type=location['type'],
+        context="Regenerated version"
+    )
+    
+    # Update world state
+    game_state.world.update_location(location_name, new_version)
+    return jsonify(new_version)
+
+@api_bp.route('/town/describe', methods=['GET'])
+def get_town_description():
+    town_name = current_app.game_state.session.current_location
+    description = current_app.game_state.campaign.get_location_description(town_name)
+    return jsonify({"description": description})
+
+@api_bp.route('/character/customize', methods=['POST'])
+def customize_character():
+    char_id = request.json['character_id']
+    icon = request.json.get('icon')
+    equipment = request.json.get('equipment')
+    
+    char = current_app.game_state.get_character(char_id)
+    if not char:
+        return jsonify({"success": False})
+    
+    customizer = CharacterCustomizer()
+    customizer.customize_character(char, icon, equipment)
+    return jsonify({"success": True})
+
+@api_bp.route('/party/form', methods=['POST'])
+def form_party():
+    character_ids = request.json['character_ids']
+    characters = [c for c in current_app.game_state.characters 
+                 if c.id in character_ids]
+    
+    if len(characters) < 1:
+        return jsonify({"success": False, "message": "No characters selected"})
+    
+    coordinator = PartyCoordinator()
+    party = coordinator.form_party(characters)
+    current_app.game_state.parties.append(party)
+    return jsonify({"success": True, "party_id": party.id})
+
+# Party management endpoints
+@api_bp.route('/party/create', methods=['POST'])
+def create_party():
+    char_id = request.json['character_id']
+    party_id = current_app.game_state.party_system.create_party(char_id)
+    return jsonify({"success": True, "party_id": party_id})
+
+@api_bp.route('/party/join', methods=['POST'])
+def join_party():
+    char_id = request.json['character_id']
+    party_id = request.json['party_id']
+    success = current_app.game_state.party_system.join_party(char_id, party_id)
+    return jsonify({"success": success})
+
+@api_bp.route('/party/leave', methods=['POST'])
+def leave_party():
+    char_id = request.json['character_id']
+    result = current_app.game_state.party_system.leave_party(char_id)
+    return jsonify({"success": result is not False, "result": result})
+
+@api_bp.route('/party/transfer-leadership', methods=['POST'])
+def transfer_leadership():
+    party_id = request.json['party_id']
+    new_leader_id = request.json['new_leader_id']
+    success = current_app.game_state.party_system.transfer_leadership(party_id, new_leader_id)
+    return jsonify({"success": success})
+
+# movement endpoints
+@api_bp.route('/move', methods=['POST'])
+def handle_party_movement():
+    data = request.json
+    direction = data.get('direction')
+    steps = data.get('steps', 1)
+    
+    result = current_app.game_state.move_party(direction, steps)
+    return jsonify(result)
+
+@api_bp.route('/character/move', methods=['POST'])
+def handle_character_movement():
+    data = request.json
+    char_id = data['character_id']
+    direction = data['direction']
+    steps = data.get('steps', 1)
+    
+    char = current_app.game_state.get_character(char_id)
+    if not char:
+        return jsonify({"success": False, "message": "Character not found"})
+    
+    result = current_app.game_state.character_movement.move_character(
+        char, direction, steps
+    )
+    return jsonify(result)
+
+#character endopoints
+@api_bp.route('/character/create', methods=['POST'])
+def create_character():
+    name = request.json.get('name', 'Unnamed')
+    user_id = session.get('user_id')
+    
+    # Create character
+    char = Character(name, user_id)
+    
+    # Set position to current party position
+    state = current_app.game_state.dungeon.state
+    char.position = state.party_position
+    
+    # Add to game state
+    current_app.game_state.add_character(char)
+    
+    return jsonify({"success": True, "character": char.__dict__})
+
+@api_bp.route('/character/set-active', methods=['POST'])
+def set_active_character():
+    char_id = request.json['character_id']
+    user_id = session.get('user_id')
+    
+    if not any(c.id == char_id for c in current_app.game_state.get_user_characters(user_id)):
+        return jsonify({"success": False, "message": "Character not owned by user"})
+        
+    current_app.game_state.set_active_character(user_id, char_id)
+    return jsonify({"success": True})
+
+@api_bp.route('/character/delete', methods=['POST'])
+def delete_character():
+    char_id = request.json['character_id']
+    user_id = session.get('user_id')
+    
+    # Verify ownership
+    char = current_app.game_state.get_character(char_id)
+    if not char or char.owner_id != user_id:
+        return jsonify({"success": False})
+    
+    # Remove from game state
+    current_app.game_state.characters = [c for c in current_app.game_state.characters if c.id != char_id]
+    return jsonify({"success": True})
+
+# User info endpoint
+@api_bp.route('/user-info', methods=['GET'])
+def user_info():
+    user_id = session.get('user_id')
+    characters = current_app.game_state.get_user_characters(user_id)
+    active_char = next((c for c in characters if c.active), None)
+    
+    return jsonify({
+        "user_id": user_id,
+        "username": session.get('username'),
+        "character_count": len(characters),
+        "active_character": active_char.id if active_char else None
+    })
+
+@api_bp.route('/party/list', methods=['GET'])
+def list_parties():
+    party_system = current_app.game_state.party_system
+    return jsonify({
+        "parties": [
+            {
+                "id": pid,
+                "leader": data["leader"],
+                "members": data["members"]
+            }
+            for pid, data in party_system.parties.items()
+        ]
+    })
+
+@api_bp.route('/character/select', methods=['POST'])
+def select_character():
+    char_id = request.json['character_id']
+    session_id = request.headers.get('X-Session-ID')
+    
+    char = current_app.game_state.get_character(char_id)
+    if not char:
+        return jsonify({"success": False, "message": "Character not found"})
+    
+    # Try to lock character
+    if char.lock(session_id):
+        return jsonify({
+            "success": True,
+            "character": {
+                "id": char.id,
+                "name": char.name,
+                "position": char.position,
+                "stats": char.stats
+            }
+        })
+    
+    return jsonify({"success": False, "message": "Character is already in use"})
+
+@api_bp.route('/character/list', methods=['GET'])
+def list_characters():
+    chars = [{
+        "id": c.id,
+        "name": c.name,
+        "position": c.position,
+        "type": c.type
+    } for c in current_app.game_state.characters]
+    
+    return jsonify({"characters": chars})
 
 # Unified movement endpoint -- buttons use this
 @api_bp.route('/move', methods=['POST'])
