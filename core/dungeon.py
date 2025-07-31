@@ -54,30 +54,43 @@ class DungeonSystem:
         self.state = None  # Will be initialized after generation
         self.visibility_system = None  # Will be initialized after generation
     
-    def generate(self):
-        # Generate dungeon and get the result
-        generator_result = self.generator.create_dungeon()
+    def generate(self, dungeon_type=None, theme=None, context=None):
+        """Generate dungeon with optional parameters"""
+        # Update options if parameters are provided
+        if dungeon_type:
+            self.options['dungeon_type'] = dungeon_type
+        if theme:
+            self.options['theme'] = theme
+        if context:
+            self.options['context'] = context
+        try:
+            # Generate dungeon and get the result
+            generator_result = self.generator.create_dungeon()
+            if not generator_result:
+                return False
+            # Create state from generator result
+            self.state = DungeonStateNeo(generator_result)
+            
+            # Set final party position FIRST
+            self._set_initial_party_position()
+            
+            # THEN create visibility system with actual position
+            self.state.visibility_system = VisibilitySystemNeo(
+                self.state.grid_system, 
+                self.state.party_position
+            )
         
-        # Create state from generator result
-        self.state = DungeonStateNeo(generator_result)
-        
-        # Set final party position FIRST
-        self._set_initial_party_position()
-        
-        # THEN create visibility system with actual position
-        self.state.visibility_system = VisibilitySystemNeo(
-            self.state.grid_system, 
-            self.state.party_position
-        )
-        
-        # Update visibility immediately
-        self.state.visibility_system.update_visibility()
-        
-        # Finally create movement service
-        self.state.movement = MovementService(self.state)
-        
-        #print(f"Generated dungeon: {self.state.width}x{self.state.height}")
-        #print(f"Initial party position: {self.state.party_position}")
+            # Update visibility immediately
+            self.state.visibility_system.update_visibility()
+            
+            # Finally create movement service
+            self.state.movement = MovementService(self.state)
+            print(f"Generated dungeon: {self.state.width}x{self.state.height}")
+            print(f"Initial party position: {self.state.party_position}")
+            return True            
+        except Exception as e:
+            print(f"Dungeon generation failed: {str(e)}")
+            return False
 
     def _set_initial_party_position(self):
         """Set initial party position near first up stair"""

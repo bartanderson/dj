@@ -396,16 +396,31 @@ def handle_ai_command():
 def debug_state():
     state = current_app.game_state.dungeon.state
     return jsonify({
-        "party_position": state.party_position,
-        "visibility_system": {
-            "party_position": current_app.game_state.dungeon.visibility_system.party_position,
-            "visible_cells": [
-                [current_app.game_state.dungeon.visibility_system.is_visible(x, y) 
-                 for x in range(state.width)] 
-                for y in range(state.height)
-            ]
-        }
+        "dungeon_active": current_app.game_state.dungeon_active,
+        "state_exists": bool(state),
+        "party_position": getattr(state, 'party_position', None),
+        "visibility_system_exists": hasattr(state, 'visibility_system'),
+        "width": getattr(state, 'width', None),
+        "height": getattr(state, 'height', None),
+        "grid_system_exists": hasattr(state, 'grid_system'),
+        "rooms_exists": hasattr(state, 'rooms'),
+        "stairs_exists": hasattr(state, 'stairs')
     })
+    # return jsonify({
+    #     "party_position": state.party_position,
+    #     "visibility_system": {
+    #         "party_position": current_app.game_state.dungeon.visibility_system.party_position,
+    #         "visible_cells": [
+    #             [current_app.game_state.dungeon.visibility_system.is_visible(x, y) 
+    #              for x in range(state.width)] 
+    #             for y in range(state.height)
+    #         ]
+    #     }
+    # })
+
+@api_bp.route('/debug-test')
+def debug_test():
+    return "Debug test successful - API is working"
 
 @api_bp.route('/dungeon-image')
 def get_dungeon_image():

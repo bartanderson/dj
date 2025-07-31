@@ -3,8 +3,6 @@ from flask import Flask, send_file, g, session
 from core.game_state import GameState
 from routes.api import api_bp
 
-
-
 def create_app():
     app = Flask(__name__)
     app.game_state = GameState()  # Single game state instance
@@ -44,7 +42,6 @@ def create_app():
         return send_file('templates\\dungeon.html')  # Serve HTML directly
     
     return app
-
 
 if __name__ == '__main__':
     app = create_app()

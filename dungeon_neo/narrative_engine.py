@@ -147,6 +147,11 @@ class NarrativeEngine:
     def on_dungeon_enter(self, location_id: str):
         """Handle dungeon entrance narrative events"""
         location = self.world.get_location(location_id)
+        if not location:
+            # Handle missing location
+            print(f"Warning: Location {location_id} not found for dungeon enter event")
+            return
+            
         # Generate dungeon-specific events
         event = self.ai.generate_structured_data(
             f"Create a narrative event for entering the dungeon at {location.name}",

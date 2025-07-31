@@ -60,7 +60,7 @@ class GameState:
         
         # Generate starting region
         region = self.world_builder.generate("region", theme=self.campaign_theme)
-        
+        print("region")
         # Generate locations
         location_types = ["town", "forest", "mountain", "coast"]
         for loc_type in location_types:
@@ -78,6 +78,7 @@ class GameState:
             )
             self.world.add_location(location)
             self.populate_location(location.id)
+        print(f"locations")
         
         # Set starting location
         starting_town = next(loc for loc in self.world.locations.values() if loc.type == "town")
@@ -99,7 +100,7 @@ class GameState:
             )
             self.world.add_faction(faction)
         if not self.dungeon_active:
-            self.enter_dungeon(self.world.get_location("dummy"))
+            self.enter_dungeon(starting_town.id)
 
     def populate_location(self, location_id: str):
         """Generate content for a location"""
@@ -130,29 +131,41 @@ class GameState:
         """Enter a dungeon associated with a location"""
         location = self.world.get_location(location_id)
         
+        # Handle case where location doesn't exist
+        if not location:
+            print(f"Error: Location {location_id} not found")
+            return False
+        
+        # Generate dungeon type if not set
         if not location.dungeon_type:
             # Generate dungeon type dynamically
-            location.dungeon_type = self.world_builder.generate(
+            dungeon_data = self.world_builder.generate(
                 "dungeon_type",
                 location=location.name,
                 theme=self.campaign_theme
             )
+            location.dungeon_type = dungeon_data.get("type", "default_dungeon")
         
         # Initialize dungeon system
         if not self.dungeon:
             self.dungeon = DungeonSystem()
         
-        # Generate dungeon
-        self.dungeon.generate(
+        # Generate dungeon with parameters
+        success = self.dungeon.generate(
             dungeon_type=location.dungeon_type,
             theme=self.campaign_theme,
             context=location.description
         )
         
+        if not success:
+            print("Dungeon generation failed")
+            return False
+            
         # Update state
         self.dungeon_active = True
         self.session.enter_dungeon(location_id)
         self.narrative.on_dungeon_enter(location_id)
+        return True
 
     # === CHARACTER MANAGEMENT METHODS ===
     def add_character(self, character):
